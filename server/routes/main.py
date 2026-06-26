@@ -17,7 +17,7 @@ main_bp = Blueprint('main', __name__)
 @main_bp.route("/monitor")
 def index(subpath=""):
     """Trang chính - Console, File Manager & Monitor"""
-    if request.path.startswith("/monitor") or request.path == "/#monitor":
+    if request.path.startswith("/monitor"):
         active_tab = "monitor"
     elif request.path.startswith("/files"):
         active_tab = "files"

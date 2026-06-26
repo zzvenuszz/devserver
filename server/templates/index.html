@@ -91,6 +91,8 @@
         .nav-right-controls { display: flex; align-items: center; gap: 15px; }
         .stats-bar { display: flex; gap: 12px; font-size: 13px; color: var(--text-muted); align-items: center; }
         .stats-bar span { background: var(--bg-card); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color); color: var(--text-main); }
+        .stats-bar .status-green { color: #28a745 !important; font-weight: bold; }
+        .stats-bar .status-red { color: #dc3545 !important; font-weight: bold; }
         .logout-btn { background: #dc3545; color: white; text-decoration: none; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; }
         
         .theme-selector {
@@ -644,7 +646,7 @@
                 <span>IP Host: <strong style="color:#1ce1ff;">{{ stats.ip }}</strong></span>
                 <span>Vị trí: <strong style="color:#ffca28;">{{ stats.location }}</strong></span>
                 <span>Browser Ping: <strong id="ping-display" style="color:#e11cff;">-- ms</strong></span>
-                <span>Server MC: <strong style="color: {{ 'green' if stats.status == 'RUNNING' else 'red' }};">{{ stats.status }}</strong></span>
+                <span>Server MC: <strong class="status-{{ 'green' if stats.status == 'RUNNING' else 'red' }}">{{ stats.status }}</strong></span>
                 <span>MC RAM: <strong style="color:#28a745;">{{ stats.ram_used }} MB</strong></span>
                 <span>MC CPU: <strong style="color:#007bff;">{{ stats.cpu }} %</strong></span>
                 <a href="/logout" class="logout-btn">🔒 Đăng xuất</a>
@@ -655,7 +657,7 @@
     <div class="tabs">
         <a href="/" class="tab-btn {{ 'active' if active_tab == 'console' else '' }}">💻 Live Console</a>
         <a href="/files" class="tab-btn {{ 'active' if active_tab == 'files' else '' }}">📂 File Manager v4</a>
-        <a href="/#monitor" class="tab-btn {{ 'active' if active_tab == 'monitor' else '' }}" onclick="switchToMonitorTab()">📊 Monitor Dashboard</a>
+        <a href="/monitor" class="tab-btn {{ 'active' if active_tab == 'monitor' else '' }}">📊 Monitor Dashboard</a>
     </div>
 
     <div class="container">
