@@ -44,6 +44,7 @@ def run_paper():
         "-XshowSettings:vm",
         "-jar",
         Config.PAPER_JAR,
+        "--config", os.path.join(BASE_DATA_DIR, "server.properties"),
         "-W",
         BASE_DATA_DIR,
         "--nogui"
