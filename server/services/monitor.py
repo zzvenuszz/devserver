@@ -381,7 +381,7 @@ def chart_data_collector():
             state.chart_data["tps"].append(state.mc_tps)
             state.chart_data["mspt"].append(state.mc_mspt)
             state.chart_data["cpu"].append(state.system_cpu)
-            state.chart_data["ram"].append(state.system_ram)
+            state.chart_data["ram"].append(state.current_mc_ram)  # Dùng Minecraft RAM
             
             # Tính tổng disk và network
             total_io = state.disk_read + state.disk_write
@@ -416,14 +416,14 @@ def alert_manager():
                     state.current_alert_status["cpu"] = new_cpu_status
                     send_minecraft_alert("cpu", old, new_cpu_status, state.system_cpu)
             
-            # Kiểm tra RAM (chỉ nếu được bật)
+            # Kiểm tra RAM (chỉ nếu được bật) - dùng Minecraft RAM với MAX 16GB
             if getattr(state, 'monitor_track_ram', True):
-                ram_percent = (state.system_ram / state.system_ram_total * 100) if state.system_ram_total > 0 else 0
-                new_ram_status = get_status_color("ram", ram_percent)
+                mc_ram_percent = (state.current_mc_ram / 16384 * 100)  # 16GB = 16384MB
+                new_ram_status = get_status_color("ram", mc_ram_percent)
                 if new_ram_status != state.current_alert_status["ram"]:
                     old = state.current_alert_status["ram"]
                     state.current_alert_status["ram"] = new_ram_status
-                    send_minecraft_alert("ram", old, new_ram_status, ram_percent)
+                    send_minecraft_alert("ram", old, new_ram_status, mc_ram_percent)
             
             # Kiểm tra Disk (chỉ nếu được bật)
             if getattr(state, 'monitor_track_disk', True):
@@ -503,12 +503,16 @@ def get_server_stats():
 
 def get_monitor_stats():
     """Lấy tất cả metrics monitor hiện tại"""
+    # RAM cho monitor dashboard: dùng Minecraft RAM với MAX = 16GB
+    mc_ram_used = state.current_mc_ram  # RAM Minecraft đang dùng (MB)
+    mc_ram_max = 16384  # 16GB cố định cho Minecraft server
+    
     return {
         "enabled": state.monitor_enabled,
         "mode": state.monitor_mode,
         "system_cpu": state.system_cpu,
-        "system_ram": state.system_ram,
-        "system_ram_total": state.system_ram_total,
+        "system_ram": mc_ram_used,  # RAM Minecraft thay vì RAM hệ thống
+        "system_ram_total": mc_ram_max,  # MAX 16GB
         "disk_read": state.disk_read,
         "disk_write": state.disk_write,
         "net_sent": state.net_sent,
