@@ -12,14 +12,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Configure Git
-        run: |
-          git config --global user.email "action@github.com"
-          git config --global user.name "GitHub Action"
-
       - name: Push to Hugging Face
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          git remote add hf https://noobsclan101:$HF_TOKEN@huggingface.co/spaces/noobsclan101/devserver
+          # Xóa remote hf cũ nếu có
+          git remote remove hf || true
+          # Thêm remote hf với Token được chèn trực tiếp vào URL
+          git remote add hf https://noobsclan101:${HF_TOKEN}@huggingface.co/spaces/noobsclan101/devserver
+          # Push code
           git push hf main --force
