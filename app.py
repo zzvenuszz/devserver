@@ -1629,4 +1629,5 @@ threading.Thread(target=run_playit, daemon=True).start()
 threading.Thread(target=monitor_java, daemon=True).start()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=7860)
+    port = int(os.getenv("PORT", 7860))
+    app.run(host="0.0.0.0", port=port)
