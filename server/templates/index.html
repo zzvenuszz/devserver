@@ -29,6 +29,10 @@
             --log-monitor: #8c8c8c;
             --link-color: #38b6ff;
             --link-dir-color: #ffc107;
+            
+            --status-green: #28a745;
+            --status-yellow: #ffc107;
+            --status-red: #dc3545;
         }
 
         [data-theme="light"] {
@@ -56,6 +60,10 @@
             --log-monitor: #5a5a5a;
             --link-color: #0056b3;
             --link-dir-color: #b15b00;
+            
+            --status-green: #28a745;
+            --status-yellow: #ffc107;
+            --status-red: #dc3545;
         }
 
         html, body { 
@@ -296,6 +304,330 @@
         .custom-modal-body { font-size: 14px; color: var(--text-main); display: flex; flex-direction: column; gap: 10px; }
         .custom-modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 5px; }
         .modal-log-area { background: #000; border: 1px solid #333; color: #00ff00; font-family: monospace; font-size: 12px; padding: 10px; max-height: 150px; overflow-y: auto; border-radius: 4px; white-space: pre-wrap; word-break: break-all; }
+
+        /* ========== MONITOR DASHBOARD STYLES ========== */
+        .monitor-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .monitor-control-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px 15px;
+            flex-shrink: 0;
+        }
+        .monitor-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #4caf50;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .monitor-toggle-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .monitor-toggle-label {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: bold;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            background: #555;
+            border-radius: 13px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .toggle-switch.active {
+            background: #4caf50;
+        }
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s;
+        }
+        .toggle-switch.active::after {
+            transform: translateX(24px);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            flex-shrink: 0;
+        }
+        @media (max-width: 1200px) {
+            .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 600px) {
+            .metrics-grid { grid-template-columns: 1fr; }
+        }
+
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            position: relative;
+            overflow: hidden;
+        }
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--status-green);
+        }
+        .metric-card.status-yellow::before { background: var(--status-yellow); }
+        .metric-card.status-red::before { background: var(--status-red); }
+        
+        .metric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .metric-name {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+        .metric-icon {
+            font-size: 18px;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--text-main);
+            font-family: 'Courier New', monospace;
+        }
+        .metric-unit {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-left: 4px;
+        }
+        .metric-status {
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            padding: 2px 6px;
+            border-radius: 3px;
+            display: inline-block;
+            width: fit-content;
+        }
+        .metric-status.green { background: rgba(40,167,69,0.2); color: var(--status-green); }
+        .metric-status.yellow { background: rgba(255,193,7,0.2); color: #d39e00; }
+        .metric-status.red { background: rgba(220,53,69,0.2); color: var(--status-red); }
+
+        .analysis-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            display: none;
+        }
+        .analysis-box.visible {
+            display: block;
+        }
+        .analysis-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: #ffc107;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .analysis-content {
+            font-size: 13px;
+            color: var(--text-main);
+            line-height: 1.5;
+        }
+        .recommendation-list {
+            margin-top: 8px;
+            padding-left: 20px;
+        }
+        .recommendation-list li {
+            margin-bottom: 4px;
+            font-size: 13px;
+        }
+
+        .monitor-log-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .monitor-log-section h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #4caf50;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 6px;
+        }
+        .monitor-log-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .monitor-log-item {
+            display: flex;
+            gap: 10px;
+            font-size: 12px;
+            font-family: monospace;
+            padding: 4px 8px;
+            background: var(--bg-input);
+            border-radius: 3px;
+        }
+        .log-time {
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+        .log-metric {
+            font-weight: bold;
+            min-width: 60px;
+        }
+        .log-change {
+            color: var(--text-main);
+        }
+        .log-change .arrow {
+            font-weight: bold;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        @media (max-width: 900px) {
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            min-height: 220px;
+        }
+        .chart-card h4 {
+            margin: 0 0 8px 0;
+            font-size: 13px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+        .chart-container {
+            position: relative;
+            height: 180px;
+        }
+
+        /* Alert Popup */
+        .alert-popup-container {
+            position: fixed;
+            top: 70px;
+            right: 15px;
+            z-index: 1500;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 320px;
+            pointer-events: none;
+        }
+        .alert-popup {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--status-red);
+            border-radius: 6px;
+            padding: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease-out;
+            pointer-events: auto;
+        }
+        .alert-popup.yellow { border-left-color: var(--status-yellow); }
+        .alert-popup.green { border-left-color: var(--status-green); }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .alert-popup-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: var(--status-red);
+            margin-bottom: 4px;
+        }
+        .alert-popup.yellow .alert-popup-title { color: #d39e00; }
+        .alert-popup.green .alert-popup-title { color: var(--status-green); }
+        .alert-popup-body {
+            font-size: 12px;
+            color: var(--text-main);
+        }
+        .alert-popup-time {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .navbar {
+                flex-direction: column;
+                gap: 10px;
+                align-items: stretch;
+            }
+            .nav-right-controls {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            .stats-bar {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            .tabs {
+                overflow-x: auto;
+            }
+            .tab-btn {
+                padding: 10px 15px;
+                font-size: 13px;
+                white-space: nowrap;
+            }
+            .console-main-frame {
+                grid-template-columns: 1fr;
+            }
+            .alert-popup-container {
+                left: 10px;
+                right: 10px;
+                max-width: none;
+            }
+        }
     </style>
 </head>
 <body>
@@ -323,6 +655,7 @@
     <div class="tabs">
         <a href="/" class="tab-btn {{ 'active' if active_tab == 'console' else '' }}">💻 Live Console</a>
         <a href="/files" class="tab-btn {{ 'active' if active_tab == 'files' else '' }}">📂 File Manager v4</a>
+        <a href="/#monitor" class="tab-btn {{ 'active' if active_tab == 'monitor' else '' }}" onclick="switchToMonitorTab()">📊 Monitor Dashboard</a>
     </div>
 
     <div class="container">
@@ -929,63 +1262,589 @@
             }
         </script>
         {% endif %}
-    </div>
 
-    <script>
-        function applyThemeEngine() {
-            const mode = localStorage.getItem('panel-theme-mode') || 'dark';
-            document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
-            const targetBtn = document.getElementById('theme-' + mode);
-            if(targetBtn) targetBtn.classList.add('active');
+        {% if active_tab == 'monitor' %}
+        <div class="monitor-layout">
+            <!-- Control Bar -->
+            <div class="monitor-control-bar">
+                <div class="monitor-title">
+                    <span>📊</span>
+                    <span>Monitor Dashboard</span>
+                </div>
+                <div class="monitor-toggle-wrapper">
+                    <span class="monitor-toggle-label" id="monitor-status-text">Đang TẮT</span>
+                    <div class="toggle-switch" id="monitor-toggle" onclick="toggleMonitor()"></div>
+                </div>
+            </div>
 
-            if (mode === 'auto') {
-                const currentHour = new Date().getHours();
-                if (currentHour >= 6 && currentHour < 18) {
-                    document.documentElement.setAttribute('data-theme', 'light');
-                } else {
-                    document.documentElement.setAttribute('data-theme', 'dark');
+            <!-- Metrics Grid -->
+            <div class="metrics-grid">
+                <div class="metric-card" id="card-cpu">
+                    <div class="metric-header">
+                        <span class="metric-name">CPU Hệ thống</span>
+                        <span class="metric-icon">🖥️</span>
+                    </div>
+                    <div>
+                        <span class="metric-value" id="val-cpu">0</span>
+                        <span class="metric-unit">%</span>
+                    </div>
+                    <span class="metric-status green" id="status-cpu">GOOD</span>
+                </div>
+
+                <div class="metric-card" id="card-ram">
+                    <div class="metric-header">
+                        <span class="metric-name">RAM Hệ thống</span>
+                        <span class="metric-icon">💾</span>
+                    </div>
+                    <div>
+                        <span class="metric-value" id="val-ram">0</span>
+                        <span class="metric-unit">MB</span>
+                    </div>
+                    <span class="metric-status green" id="status-ram">GOOD</span>
+                </div>
+
+                <div class="metric-card" id="card-disk">
+                    <div class="metric-header">
+                        <span class="metric-name">Disk I/O</span>
+                        <span class="metric-icon">💿</span>
+                    </div>
+                    <div>
+                        <span class="metric-value" id="val-disk">0</span>
+                        <span class="metric-unit">MB/s</span>
+                    </div>
+                    <span class="metric-status green" id="status-disk">GOOD</span>
+                </div>
+
+                <div class="metric-card" id="card-network">
+                    <div class="metric-header">
+                        <span class="metric-name">Network I/O</span>
+                        <span class="metric-icon">🌐</span>
+                    </div>
+                    <div>
+                        <span class="metric-value" id="val-network">0</span>
+                        <span class="metric-unit">MB/s</span>
+                    </div>
+                    <span class="metric-status green" id="status-network">GOOD</span>
+                </div>
+
+                <div class="metric-card" id="card-tps">
+                    <div class="metric-header">
+                        <span class="metric-name">TPS</span>
+                        <span class="metric-icon">⚡</span>
+                    </div>
+                    <div>
+                        <span class="metric-value" id="val-tps">20.0</span>
+                        <span class="metric-unit"></span>
+                    </div>
+                    <span class="metric-status green" id="status-tps">GOOD</span>
+                </div>
+
+                <div class="metric-card" id="card-mspt">
+                    <div class="metric-header">
+                        <span class="metric-name">MSPT</span>
+                        <span class="metric-icon">⏱️</span>
+                    </div>
+                    <div>
+                        <span class="metric-value" id="val-mspt">0</span>
+                        <span class="metric-unit">ms</span>
+                    </div>
+                    <span class="metric-status green" id="status-mspt">GOOD</span>
+                </div>
+
+                <div class="metric-card" id="card-ping">
+                    <div class="metric-header">
+                        <span class="metric-name">Server Ping</span>
+                        <span class="metric-icon">📡</span>
+                    </div>
+                    <div>
+                        <span class="metric-value" id="val-ping">0</span>
+                        <span class="metric-unit">ms</span>
+                    </div>
+                    <span class="metric-status green" id="status-ping">GOOD</span>
+                </div>
+
+                <div class="metric-card" id="card-players">
+                    <div class="metric-header">
+                        <span class="metric-name">Người chơi</span>
+                        <span class="metric-icon">👥</span>
+                    </div>
+                    <div>
+                        <span class="metric-value" id="val-players">0</span>
+                        <span class="metric-unit">/ <span id="val-max-players">0</span></span>
+                    </div>
+                    <span class="metric-status green" id="status-players">GOOD</span>
+                </div>
+            </div>
+
+            <!-- Analysis Box -->
+            <div class="analysis-box" id="analysis-box">
+                <div class="analysis-title">
+                    <span>🔍</span>
+                    <span>Phân tích nguyên nhân</span>
+                </div>
+                <div class="analysis-content" id="analysis-content"></div>
+            </div>
+
+            <!-- Monitor Log -->
+            <div class="monitor-log-section">
+                <h3>📋 Nhật ký Monitor</h3>
+                <div class="monitor-log-list" id="monitor-log-list">
+                    <div style="color: var(--text-muted); font-size: 12px; text-align: center; padding: 10px;">Chưa có dữ liệu</div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h4>📈 TPS - 30 phút</h4>
+                    <div class="chart-container">
+                        <canvas id="chart-tps"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h4>⏱️ MSPT - 30 phút</h4>
+                    <div class="chart-container">
+                        <canvas id="chart-mspt"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h4>🖥️ CPU - 30 phút</h4>
+                    <div class="chart-container">
+                        <canvas id="chart-cpu"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h4>💾 RAM - 30 phút</h4>
+                    <div class="chart-container">
+                        <canvas id="chart-ram"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h4>💿 Disk I/O - 30 phút</h4>
+                    <div class="chart-container">
+                        <canvas id="chart-disk"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h4>🌐 Network I/O - 30 phút</h4>
+                    <div class="chart-container">
+                        <canvas id="chart-network"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alert Popup Container -->
+        <div class="alert-popup-container" id="alert-popup-container"></div>
+
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script>
+            let monitorEnabled = false;
+            let monitorInterval = null;
+            let charts = {};
+            let lastAlertStatus = {};
+
+            function switchToMonitorTab() {
+                // Đảm bảo URL có fragment #monitor
+                if (!window.location.hash) {
+                    window.location.hash = 'monitor';
                 }
-            } else {
-                document.documentElement.setAttribute('data-theme', mode);
             }
-            if (typeof renderLogs === "function") renderLogs();
-        }
 
-        function changeThemeMode(newMode) {
-            localStorage.setItem('panel-theme-mode', newMode);
-            applyThemeEngine();
-        }
-
-        applyThemeEngine();
-        setInterval(() => {
-            if(localStorage.getItem('panel-theme-mode') === 'auto') applyThemeEngine();
-        }, 60000);
-
-        function measureBrowserPing() {
-            const startTime = performance.now();
-            fetch('/api/ping')
+            function toggleMonitor() {
+                fetch('/api/monitor/toggle', { method: 'POST' })
                 .then(res => res.json())
                 .then(data => {
-                    const endTime = performance.now();
-                    const pingTime = Math.round(endTime - startTime);
-                    const pingElem = document.getElementById('ping-display');
-                    if (pingElem) {
-                        pingElem.innerText = pingTime + " ms";
-                        if (pingTime < 80) pingElem.style.color = "#28a745";
-                        else if (pingTime < 200) pingElem.style.color = "#ffca28";
-                        else pingElem.style.color = "#dc3545";
-                    }
-                })
-                .catch(err => {
-                    const pingElem = document.getElementById('ping-display');
-                    if (pingElem) {
-                        pingElem.innerText = "Lỗi";
-                        pingElem.style.color = "#dc3545";
+                    monitorEnabled = data.enabled;
+                    updateMonitorUI();
+                    if (monitorEnabled) {
+                        startMonitorPolling();
+                    } else {
+                        stopMonitorPolling();
                     }
                 });
-        }
-        measureBrowserPing();
-        setInterval(measureBrowserPing, 5000);
-    </script>
+            }
+
+            function updateMonitorUI() {
+                const toggle = document.getElementById('monitor-toggle');
+                const statusText = document.getElementById('monitor-status-text');
+                
+                if (monitorEnabled) {
+                    toggle.classList.add('active');
+                    statusText.textContent = 'Đang BẬT';
+                    statusText.style.color = '#4caf50';
+                } else {
+                    toggle.classList.remove('active');
+                    statusText.textContent = 'Đang TẮT';
+                    statusText.style.color = 'var(--text-muted)';
+                }
+            }
+
+            function startMonitorPolling() {
+                if (monitorInterval) clearInterval(monitorInterval);
+                fetchMonitorData();
+                monitorInterval = setInterval(fetchMonitorData, 1000);
+            }
+
+            function stopMonitorPolling() {
+                if (monitorInterval) {
+                    clearInterval(monitorInterval);
+                    monitorInterval = null;
+                }
+            }
+
+            function fetchMonitorData() {
+                Promise.all([
+                    fetch('/api/monitor/stats').then(r => r.json()),
+                    fetch('/api/monitor/chart').then(r => r.json()),
+                    fetch('/api/monitor/alerts').then(r => r.json())
+                ]).then(([stats, chart, alerts]) => {
+                    updateMetrics(stats);
+                    updateCharts(chart);
+                    updateAlertLog(alerts.alerts);
+                    checkAlerts(stats);
+                    analyzePerformance(stats);
+                }).catch(err => {
+                    console.error('Monitor fetch error:', err);
+                });
+            }
+
+            function updateMetrics(stats) {
+                // CPU
+                document.getElementById('val-cpu').textContent = stats.system_cpu;
+                updateMetricCard('cpu', stats.system_cpu, 'cpu');
+                
+                // RAM
+                document.getElementById('val-ram').textContent = stats.system_ram;
+                document.getElementById('val-max-ram') && (document.getElementById('val-max-ram').textContent = stats.system_ram_total);
+                updateMetricCard('ram', stats.system_ram, 'ram');
+                
+                // Disk
+                const totalDisk = stats.disk_read + stats.disk_write;
+                document.getElementById('val-disk').textContent = totalDisk.toFixed(2);
+                updateMetricCard('disk', totalDisk, 'disk');
+                
+                // Network
+                const totalNet = stats.net_sent + stats.net_recv;
+                document.getElementById('val-network').textContent = totalNet.toFixed(2);
+                updateMetricCard('network', totalNet, 'network');
+                
+                // TPS
+                document.getElementById('val-tps').textContent = stats.mc_tps.toFixed(1);
+                updateMetricCard('tps', stats.mc_tps, 'tps');
+                
+                // MSPT
+                document.getElementById('val-mspt').textContent = stats.mc_mspt.toFixed(1);
+                updateMetricCard('mspt', stats.mc_mspt, 'mspt');
+                
+                // Players
+                document.getElementById('val-players').textContent = stats.mc_players;
+                document.getElementById('val-max-players').textContent = stats.mc_max_players;
+                
+                // Ping
+                document.getElementById('val-ping').textContent = stats.mc_ping;
+            }
+
+            function updateMetricCard(metric, value, type) {
+                const card = document.getElementById(`card-${metric}`);
+                const statusEl = document.getElementById(`status-${metric}`);
+                
+                // Xác định status
+                let status = 'green';
+                if (type === 'disk') {
+                    if (value < 5) status = 'red';
+                    else if (value < 20) status = 'yellow';
+                } else if (type === 'network') {
+                    if (value < 2) status = 'red';
+                    else if (value < 10) status = 'yellow';
+                } else if (type === 'tps') {
+                    if (value < 18) status = 'red';
+                    else if (value < 19.8) status = 'yellow';
+                } else if (type === 'mspt') {
+                    if (value > 40) status = 'red';
+                    else if (value > 20) status = 'yellow';
+                }
+                
+                // Cập nhật UI
+                card.className = `metric-card status-${status}`;
+                statusEl.className = `metric-status ${status}`;
+                statusEl.textContent = status.toUpperCase();
+            }
+
+            function checkAlerts(stats) {
+                const alertStatus = stats.alert_status;
+                const popupContainer = document.getElementById('alert-popup-container');
+                
+                Object.keys(alertStatus).forEach(metric => {
+                    const newStatus = alertStatus[metric];
+                    const oldStatus = lastAlertStatus[metric];
+                    
+                    if (newStatus !== oldStatus) {
+                        // Trạng thái thay đổi - hiện popup
+                        showAlertPopup(metric, newStatus, stats);
+                        lastAlertStatus[metric] = newStatus;
+                    }
+                });
+            }
+
+            function showAlertPopup(metric, status, stats) {
+                const container = document.getElementById('alert-popup-container');
+                let value = 0;
+                let title = '';
+                
+                if (metric === 'disk') {
+                    value = (stats.disk_read + stats.disk_write).toFixed(2);
+                    title = `Disk I/O: ${value} MB/s`;
+                } else if (metric === 'network') {
+                    value = (stats.net_sent + stats.net_recv).toFixed(2);
+                    title = `Network: ${value} MB/s`;
+                } else if (metric === 'tps') {
+                    value = stats.mc_tps.toFixed(1);
+                    title = `TPS: ${value}`;
+                } else if (metric === 'mspt') {
+                    value = stats.mc_mspt.toFixed(1);
+                    title = `MSPT: ${value} ms`;
+                }
+                
+                const popup = document.createElement('div');
+                popup.className = `alert-popup ${status}`;
+                popup.innerHTML = `
+                    <div class="alert-popup-title">${title}</div>
+                    <div class="alert-popup-body">${getAlertMessage(metric, status)}</div>
+                    <div class="alert-popup-time">${new Date().toLocaleTimeString('vi-VN')}</div>
+                `;
+                
+                container.appendChild(popup);
+                
+                // Tự động xóa sau 5 giây
+                setTimeout(() => {
+                    popup.style.opacity = '0';
+                    setTimeout(() => popup.remove(), 300);
+                }, 5000);
+            }
+
+            function getAlertMessage(metric, status) {
+                const messages = {
+                    disk: {
+                        green: 'Disk đang ở mức tốt. Chunk sẽ load nhanh.',
+                        yellow: 'Disk đang ở mức trung bình. Chunk có thể load hơi chậm.',
+                        red: 'Disk đang ở mức rất thấp. Chunk sẽ load rất chậm.'
+                    },
+                    network: {
+                        green: 'Network đang ổn định. Kết nối tốt.',
+                        yellow: 'Network hơi yếu. Có thể có lag khi kết nối.',
+                        red: 'Network rất yếu. Người chơi có thể bị disconnect.'
+                    },
+                    tps: {
+                        green: 'TPS đang ổn định. Server chạy mượt.',
+                        yellow: 'TPS giảm. Server có thể bị lag nhẹ.',
+                        red: 'TPS rất thấp. Server đang bị lag nghiêm trọng!'
+                    },
+                    mspt: {
+                        green: 'MSPT đang ở mức tốt. Server phản hồi nhanh.',
+                        yellow: 'MSPT tăng. Server phản hồi chậm hơn.',
+                        red: 'MSPT rất cao. Server phản hồi rất chậm!'
+                    }
+                };
+                return messages[metric]?.[status] || '';
+            }
+
+            function updateAlertLog(alerts) {
+                const logList = document.getElementById('monitor-log-list');
+                if (!alerts || alerts.length === 0) {
+                    logList.innerHTML = '<div style="color: var(--text-muted); font-size: 12px; text-align: center; padding: 10px;">Chưa có dữ liệu</div>';
+                    return;
+                }
+                
+                logList.innerHTML = alerts.map(alert => `
+                    <div class="monitor-log-item">
+                        <span class="log-time">${alert.time}</span>
+                        <span class="log-metric">${alert.metric}</span>
+                        <span class="log-change">
+                            <span class="arrow">${alert.old}</span> → <span class="arrow">${alert.new}</span>
+                        </span>
+                    </div>
+                `).join('');
+            }
+
+            function updateCharts(chartData) {
+                const labels = chartData.timestamps || [];
+                
+                Object.keys(charts).forEach(key => {
+                    if (charts[key]) {
+                        charts[key].data.labels = labels;
+                        charts[key].data.datasets[0].data = chartData[key] || [];
+                        charts[key].update('none');
+                    }
+                });
+            }
+
+            function initCharts() {
+                const chartConfig = (label, color, unit) => ({
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: label,
+                            data: [],
+                            borderColor: color,
+                            backgroundColor: color + '20',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0,
+                            pointHoverRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: {
+                                display: true,
+                                ticks: { 
+                                    color: 'var(--text-muted)',
+                                    maxTicksLimit: 6,
+                                    font: { size: 10 }
+                                },
+                                grid: { color: 'var(--border-light)' }
+                            },
+                            y: {
+                                display: true,
+                                ticks: { 
+                                    color: 'var(--text-muted)',
+                                    font: { size: 10 }
+                                },
+                                grid: { color: 'var(--border-light)' }
+                            }
+                        }
+                    }
+                });
+
+                charts.tps = new Chart(document.getElementById('chart-tps'), chartConfig('TPS', '#4caf50', ''));
+                charts.mspt = new Chart(document.getElementById('chart-mspt'), chartConfig('MSPT', '#ff9800', 'ms'));
+                charts.cpu = new Chart(document.getElementById('chart-cpu'), chartConfig('CPU', '#2196f3', '%'));
+                charts.ram = new Chart(document.getElementById('chart-ram'), chartConfig('RAM', '#9c27b0', 'MB'));
+                charts.disk = new Chart(document.getElementById('chart-disk'), chartConfig('Disk I/O', '#00bcd4', 'MB/s'));
+                charts.network = new Chart(document.getElementById('chart-network'), chartConfig('Network I/O', '#ff5722', 'MB/s'));
+            }
+
+            function analyzePerformance(stats) {
+                const analysisBox = document.getElementById('analysis-box');
+                const analysisContent = document.getElementById('analysis-content');
+                const issues = [];
+                const recommendations = [];
+                
+                // Phân tích TPS thấp
+                if (stats.mc_tps < 18) {
+                    issues.push(`TPS thấp (${stats.mc_tps.toFixed(1)})`);
+                    
+                    if (stats.system_cpu > 90) {
+                        issues.push(`CPU quá tải (${stats.system_cpu}%)`);
+                        recommendations.push('Giảm tải CPU: Tắt plugins không cần thiết, giảm view distance');
+                    }
+                    if (stats.system_ram > 0 && stats.system_ram_total > 0) {
+                        const ramPercent = (stats.system_ram / stats.system_ram_total) * 100;
+                        if (ramPercent > 90) {
+                            issues.push(`RAM gần đầy (${ramPercent.toFixed(0)}%)`);
+                            recommendations.push('Tăng RAM cho server hoặc giảm số người chơi/entities');
+                        }
+                    }
+                    const totalDisk = stats.disk_read + stats.disk_write;
+                    if (totalDisk < 5) {
+                        issues.push(`Disk I/O rất thấp (${totalDisk.toFixed(2)} MB/s)`);
+                        recommendations.push('Kiểm tra ổ cứng: Có thể đang ghi chậm, cân nhắc dùng SSD');
+                    }
+                    const totalNet = stats.net_sent + stats.net_recv;
+                    if (totalNet < 2) {
+                        issues.push(`Network yếu (${totalNet.toFixed(2)} MB/s)`);
+                        recommendations.push('Kiểm tra kết nối mạng và băng thông server');
+                    }
+                }
+                
+                if (issues.length > 0) {
+                    analysisBox.classList.add('visible');
+                    analysisContent.innerHTML = `
+                        <div style="margin-bottom: 8px;"><strong>Các vấn đề phát hiện:</strong></div>
+                        <ul style="margin: 4px 0; padding-left: 20px;">
+                            ${issues.map(i => `<li>${i}</li>`).join('')}
+                        </ul>
+                        ${recommendations.length > 0 ? `
+                            <div style="margin-top: 10px;"><strong>Khuyến nghị:</strong></div>
+                            <ul class="recommendation-list">
+                                ${recommendations.map(r => `<li>${r}</li>`).join('')}
+                            </ul>
+                        ` : ''}
+                    `;
+                } else {
+                    analysisBox.classList.remove('visible');
+                }
+            }
+
+            // Khởi tạo
+            document.addEventListener('DOMContentLoaded', function() {
+                initCharts();
+            });
+
+            function applyThemeEngine() {
+                const mode = localStorage.getItem('panel-theme-mode') || 'dark';
+                document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
+                const targetBtn = document.getElementById('theme-' + mode);
+                if(targetBtn) targetBtn.classList.add('active');
+
+                if (mode === 'auto') {
+                    const currentHour = new Date().getHours();
+                    if (currentHour >= 6 && currentHour < 18) {
+                        document.documentElement.setAttribute('data-theme', 'light');
+                    } else {
+                        document.documentElement.setAttribute('data-theme', 'dark');
+                    }
+                } else {
+                    document.documentElement.setAttribute('data-theme', mode);
+                }
+            }
+
+            function changeThemeMode(newMode) {
+                localStorage.setItem('panel-theme-mode', newMode);
+                applyThemeEngine();
+            }
+
+            applyThemeEngine();
+            setInterval(() => {
+                if(localStorage.getItem('panel-theme-mode') === 'auto') applyThemeEngine();
+            }, 60000);
+
+            function measureBrowserPing() {
+                const startTime = performance.now();
+                fetch('/api/ping')
+                    .then(res => res.json())
+                    .then(data => {
+                        const endTime = performance.now();
+                        const pingTime = Math.round(endTime - startTime);
+                        const pingElem = document.getElementById('ping-display');
+                        if (pingElem) {
+                            pingElem.innerText = pingTime + " ms";
+                            if (pingTime < 80) pingElem.style.color = "#28a745";
+                            else if (pingTime < 200) pingElem.style.color = "#ffca28";
+                            else pingElem.style.color = "#dc3545";
+                        }
+                    })
+                    .catch(err => {
+                        const pingElem = document.getElementById('ping-display');
+                        if (pingElem) {
+                            pingElem.innerText = "Lỗi";
+                            pingElem.style.color = "#dc3545";
+                        }
+                    });
+            }
+            measureBrowserPing();
+            setInterval(measureBrowserPing, 5000);
+        </script>
+        {% endif %}
+    </div>
 </body>
 </html>

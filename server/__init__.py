@@ -3,7 +3,7 @@ VnMine Panel - Flask Application Factory
 """
 from flask import Flask
 from server.config import Config
-from server.routes import auth_bp, console_bp, main_bp, fm_bp
+from server.routes import auth_bp, console_bp, main_bp, fm_bp, monitor_bp
 
 
 def create_app():
@@ -18,5 +18,6 @@ def create_app():
     app.register_blueprint(console_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(fm_bp)
+    app.register_blueprint(monitor_bp)
     
     return app

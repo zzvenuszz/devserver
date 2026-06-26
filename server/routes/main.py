@@ -14,9 +14,15 @@ main_bp = Blueprint('main', __name__)
 @main_bp.route("/")
 @main_bp.route("/files")
 @main_bp.route("/files/<path:subpath>")
+@main_bp.route("/monitor")
 def index(subpath=""):
-    """Trang chính - Console & File Manager"""
-    active_tab = "files" if request.path.startswith("/files") else "console"
+    """Trang chính - Console, File Manager & Monitor"""
+    if request.path.startswith("/monitor") or request.path == "/#monitor":
+        active_tab = "monitor"
+    elif request.path.startswith("/files"):
+        active_tab = "files"
+    else:
+        active_tab = "console"
     target_dir = os.path.join(BASE_DATA_DIR, subpath)
     file_content = None
     edit_file_path = ""

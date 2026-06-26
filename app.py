@@ -6,6 +6,7 @@ import threading
 import os
 from server import create_app
 from server.services import fetch_server_info, run_paper, run_playit, monitor_java
+from server.services.monitor import start_monitor_threads
 
 
 # Tạo Flask app
@@ -20,6 +21,7 @@ def start_background_services():
     threading.Thread(target=run_paper, daemon=True).start()
     threading.Thread(target=run_playit, daemon=True).start()
     threading.Thread(target=monitor_java, daemon=True).start()
+    start_monitor_threads()
 
 
 if __name__ == "__main__":

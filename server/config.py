@@ -33,6 +33,20 @@ class Config:
     # Logging
     MAX_LOGS = 5000
     LOGS_TO_RETURN = 600
+    
+    # Monitor Thresholds
+    MONITOR_DISK_GOOD = 20  # MB/s
+    MONITOR_DISK_WARN = 5   # MB/s
+    MONITOR_NET_GOOD = 10   # MB/s
+    MONITOR_NET_WARN = 2    # MB/s
+    MONITOR_TPS_GOOD = 19.8
+    MONITOR_TPS_WARN = 18.0
+    MONITOR_MSPT_GOOD = 20  # ms
+    MONITOR_MSPT_WARN = 40  # ms
+    
+    # Monitor Settings
+    MONITOR_COOLDOWN = 300  # 5 phút giữa các alert lặp lại
+    MONITOR_CHART_DURATION = 1800  # 30 phút lịch sử
 
 
 # Global state (sẽ được quản lý bởi services)
@@ -46,6 +60,46 @@ class GlobalState:
         self.current_mc_cpu = 0
         self.server_ip = "Đang lấy..."
         self.server_location = "Đang lấy..."
+        
+        # System stats
+        self.system_cpu = 0
+        self.system_ram = 0
+        self.system_ram_total = 0
+        self.disk_read = 0
+        self.disk_write = 0
+        self.net_sent = 0
+        self.net_recv = 0
+        
+        # Minecraft stats
+        self.mc_tps = 20.0
+        self.mc_mspt = 0
+        self.mc_players = 0
+        self.mc_max_players = 0
+        self.mc_ping = 0
+        
+        # Monitor control
+        self.monitor_enabled = False
+        
+        # Alert system
+        self.current_alert_status = {
+            "disk": "green",
+            "network": "green",
+            "tps": "green",
+            "mspt": "green"
+        }
+        self.last_alert_times = {}
+        self.alert_history = []
+        
+        # Chart data (30 phút, 1 điểm/giây = 1800 điểm)
+        self.chart_data = {
+            "timestamps": [],
+            "tps": [],
+            "mspt": [],
+            "cpu": [],
+            "ram": [],
+            "disk": [],
+            "network": []
+        }
     
     def reset(self):
         """Reset state (hữu ích cho testing)"""
@@ -54,6 +108,36 @@ class GlobalState:
         self.playit_process = None
         self.current_mc_ram = 0
         self.current_mc_cpu = 0
+        self.system_cpu = 0
+        self.system_ram = 0
+        self.system_ram_total = 0
+        self.disk_read = 0
+        self.disk_write = 0
+        self.net_sent = 0
+        self.net_recv = 0
+        self.mc_tps = 20.0
+        self.mc_mspt = 0
+        self.mc_players = 0
+        self.mc_max_players = 0
+        self.mc_ping = 0
+        self.monitor_enabled = False
+        self.current_alert_status = {
+            "disk": "green",
+            "network": "green",
+            "tps": "green",
+            "mspt": "green"
+        }
+        self.last_alert_times = {}
+        self.alert_history = []
+        self.chart_data = {
+            "timestamps": [],
+            "tps": [],
+            "mspt": [],
+            "cpu": [],
+            "ram": [],
+            "disk": [],
+            "network": []
+        }
 
 
 # Singleton instance
