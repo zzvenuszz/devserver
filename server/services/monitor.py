@@ -15,7 +15,7 @@ from server.services.minecraft import send_command
 def benchmark_disk_network():
     """
     Benchmark tốc độ Disk và Network khi khởi động
-    Lưu max speed vào state để dùng làm mốc 100%
+    Lưu max speed vào state và file để dùng làm mốc 100%
     """
     add_log("Đang chạy benchmark Disk & Network...", "monitor")
     
@@ -93,6 +93,10 @@ def benchmark_disk_network():
             add_log(f"Network benchmark failed: {e}", "monitor")
             state.net_max_speed = Config.MONITOR_NET_MAX_DEFAULT
         
+        # Lưu benchmark results vào file
+        from server.utils.persistence import save_benchmark_results
+        save_benchmark_results(state.disk_max_speed, state.net_max_speed)
+        
         add_log(f"Benchmark hoàn tất: Disk Max={state.disk_max_speed:.1f} MB/s, Net Max={state.net_max_speed:.1f} MB/s", "monitor")
         
     except Exception as e:
@@ -104,6 +108,11 @@ def benchmark_disk_network():
 def get_status_color(metric_type, value):
     """
     Xác định màu trạng thái dựa trên tỷ lệ % của max speed
+    Logic: 
+    - Usage THẤP (< 20% max) → server nhàn → GREEN
+    - Usage TRUNG BÌNH (20-50% max) → YELLOW
+    - Usage CAO (>= 50% max) → server tải nặng → RED
+    
     Returns: "green", "yellow", "red"
     """
     if metric_type == "disk":
@@ -112,11 +121,11 @@ def get_status_color(metric_type, value):
         else:
             ratio = 0
         
-        if ratio >= 50:  # >= 50% max speed
+        if ratio < 20:  # < 20% max speed - nhàn
             return "green"
-        elif ratio >= 20:  # 20-50% max speed
+        elif ratio < 50:  # 20-50% max speed - trung bình
             return "yellow"
-        else:  # < 20% max speed
+        else:  # >= 50% max speed - tải nặng
             return "red"
     
     elif metric_type == "network":
@@ -125,11 +134,11 @@ def get_status_color(metric_type, value):
         else:
             ratio = 0
         
-        if ratio >= 50:  # >= 50% max speed
+        if ratio < 20:  # < 20% max speed - nhàn
             return "green"
-        elif ratio >= 20:  # 20-50% max speed
+        elif ratio < 50:  # 20-50% max speed - trung bình
             return "yellow"
-        else:  # < 20% max speed
+        else:  # >= 50% max speed - tải nặng
             return "red"
     
     elif metric_type == "tps":
@@ -170,27 +179,27 @@ def send_minecraft_alert(metric_type, old_status, new_status, value):
     
     state.last_alert_times[alert_key] = current_time
     
-    # Tạo message theo metric
+    # Tạo message theo metric (đã cập nhật nghĩa cho đúng)
     if metric_type == "disk":
         if new_status == "green":
-            msg = "[Giám sát] Disk đang ở mức tốt. Chunk sẽ load nhanh."
+            msg = "[Giám sát] Disk đang nhàn (usage thấp). Chunk sẽ load nhanh."
             color = "green"
         elif new_status == "yellow":
-            msg = "[Cảnh báo] Disk đang ở mức trung bình. Chunk có thể load hơi chậm."
+            msg = "[Cảnh báo] Disk đang ở mức sử dụng trung bình."
             color = "yellow"
         else:
-            msg = "[Cảnh báo] Disk đang ở mức rất thấp. Chunk sẽ load rất chậm."
+            msg = "[Cảnh báo] Disk đang căng thẳng (usage cao). Chunk có thể load chậm!"
             color = "red"
     
     elif metric_type == "network":
         if new_status == "green":
-            msg = "[Giám sát] Network đang ổn định. Kết nối tốt."
+            msg = "[Giám sát] Network đang nhàn (bandwidth thấp). Kết nối tốt."
             color = "green"
         elif new_status == "yellow":
-            msg = "[Cảnh báo] Network hơi yếu. Có thể có lag khi kết nối."
+            msg = "[Cảnh báo] Network đang ở mức sử dụng trung bình."
             color = "yellow"
         else:
-            msg = "[Cảnh báo] Network rất yếu. Người chơi có thể bị disconnect."
+            msg = "[Cảnh báo] Network đang căng thẳng (bandwidth cao). Có thể có lag!"
             color = "red"
     
     elif metric_type == "tps":
@@ -249,27 +258,42 @@ def monitor_system():
                 time.sleep(1)
                 continue
             
-            # CPU hệ thống
-            state.system_cpu = int(psutil.cpu_percent(interval=0.5))
+            # CPU hệ thống (chỉ thu thập nếu được bật)
+            if getattr(state, 'monitor_track_cpu', True):
+                state.system_cpu = int(psutil.cpu_percent(interval=0.5))
+            else:
+                state.system_cpu = 0
             
-            # RAM hệ thống
-            mem = psutil.virtual_memory()
-            state.system_ram = int(mem.used / 1024 / 1024)
-            state.system_ram_total = int(mem.total / 1024 / 1024)
+            # RAM hệ thống (chỉ thu thập nếu được bật)
+            if getattr(state, 'monitor_track_ram', True):
+                mem = psutil.virtual_memory()
+                state.system_ram = int(mem.used / 1024 / 1024)
+                state.system_ram_total = int(mem.total / 1024 / 1024)
+            else:
+                state.system_ram = 0
+                state.system_ram_total = 0
             
-            # Disk I/O
-            curr_disk = psutil.disk_io_counters()
-            if prev_disk and curr_disk:
-                state.disk_read = round((curr_disk.read_bytes - prev_disk.read_bytes) / 1024 / 1024, 2)
-                state.disk_write = round((curr_disk.write_bytes - prev_disk.write_bytes) / 1024 / 1024, 2)
-            prev_disk = curr_disk
+            # Disk I/O (chỉ thu thập nếu được bật)
+            if getattr(state, 'monitor_track_disk', True):
+                curr_disk = psutil.disk_io_counters()
+                if prev_disk and curr_disk:
+                    state.disk_read = round((curr_disk.read_bytes - prev_disk.read_bytes) / 1024 / 1024, 2)
+                    state.disk_write = round((curr_disk.write_bytes - prev_disk.write_bytes) / 1024 / 1024, 2)
+                prev_disk = curr_disk
+            else:
+                state.disk_read = 0
+                state.disk_write = 0
             
-            # Network I/O
-            curr_net = psutil.net_io_counters()
-            if prev_net and curr_net:
-                state.net_sent = round((curr_net.bytes_sent - prev_net.bytes_sent) / 1024 / 1024, 2)
-                state.net_recv = round((curr_net.bytes_recv - prev_net.bytes_recv) / 1024 / 1024, 2)
-            prev_net = curr_net
+            # Network I/O (chỉ thu thập nếu được bật)
+            if getattr(state, 'monitor_track_network', True):
+                curr_net = psutil.net_io_counters()
+                if prev_net and curr_net:
+                    state.net_sent = round((curr_net.bytes_sent - prev_net.bytes_sent) / 1024 / 1024, 2)
+                    state.net_recv = round((curr_net.bytes_recv - prev_net.bytes_recv) / 1024 / 1024, 2)
+                prev_net = curr_net
+            else:
+                state.net_sent = 0
+                state.net_recv = 0
             
             time.sleep(1)
         except Exception:
@@ -285,20 +309,22 @@ def monitor_minecraft():
                 continue
             
             if state.java_process and state.java_process.poll() is None:
-                # Gửi lệnh lấy TPS
-                send_command("tps")
-                time.sleep(0.5)
+                # Chỉ gửi lệnh tps nếu được bật
+                if getattr(state, 'monitor_track_tps', True):
+                    send_command("tps")
+                    time.sleep(0.5)
                 
-                # Gửi lệnh lấy players
-                send_command("list")
-                time.sleep(0.5)
+                # Chỉ gửi lệnh list nếu được bật
+                if getattr(state, 'monitor_track_players', True):
+                    send_command("list")
+                    time.sleep(0.5)
                 
                 # Ping server (giả lập bằng thời gian response)
                 state.mc_ping = 0  # Sẽ được cập nhật bởi API
             
-            time.sleep(5)  # Check mỗi 5 giây
+            time.sleep(15)  # Tăng interval lên 15s để giảm spam
         except Exception:
-            time.sleep(5)
+            time.sleep(15)
 
 
 def chart_data_collector():
@@ -344,30 +370,33 @@ def alert_manager():
                 time.sleep(1)
                 continue
             
-            # Kiểm tra Disk
-            total_disk = state.disk_read + state.disk_write
-            new_disk_status = get_status_color("disk", total_disk)
-            if new_disk_status != state.current_alert_status["disk"]:
-                old = state.current_alert_status["disk"]
-                state.current_alert_status["disk"] = new_disk_status
-                send_minecraft_alert("disk", old, new_disk_status, total_disk)
+            # Kiểm tra Disk (chỉ nếu được bật)
+            if getattr(state, 'monitor_track_disk', True):
+                total_disk = state.disk_read + state.disk_write
+                new_disk_status = get_status_color("disk", total_disk)
+                if new_disk_status != state.current_alert_status["disk"]:
+                    old = state.current_alert_status["disk"]
+                    state.current_alert_status["disk"] = new_disk_status
+                    send_minecraft_alert("disk", old, new_disk_status, total_disk)
             
-            # Kiểm tra Network
-            total_net = state.net_sent + state.net_recv
-            new_net_status = get_status_color("network", total_net)
-            if new_net_status != state.current_alert_status["network"]:
-                old = state.current_alert_status["network"]
-                state.current_alert_status["network"] = new_net_status
-                send_minecraft_alert("network", old, new_net_status, total_net)
+            # Kiểm tra Network (chỉ nếu được bật)
+            if getattr(state, 'monitor_track_network', True):
+                total_net = state.net_sent + state.net_recv
+                new_net_status = get_status_color("network", total_net)
+                if new_net_status != state.current_alert_status["network"]:
+                    old = state.current_alert_status["network"]
+                    state.current_alert_status["network"] = new_net_status
+                    send_minecraft_alert("network", old, new_net_status, total_net)
             
-            # Kiểm tra TPS
-            new_tps_status = get_status_color("tps", state.mc_tps)
-            if new_tps_status != state.current_alert_status["tps"]:
-                old = state.current_alert_status["tps"]
-                state.current_alert_status["tps"] = new_tps_status
-                send_minecraft_alert("tps", old, new_tps_status, state.mc_tps)
+            # Kiểm tra TPS (chỉ nếu được bật)
+            if getattr(state, 'monitor_track_tps', True):
+                new_tps_status = get_status_color("tps", state.mc_tps)
+                if new_tps_status != state.current_alert_status["tps"]:
+                    old = state.current_alert_status["tps"]
+                    state.current_alert_status["tps"] = new_tps_status
+                    send_minecraft_alert("tps", old, new_tps_status, state.mc_tps)
             
-            # Kiểm tra MSPT
+            # Kiểm tra MSPT (luôn bật vì không gửi lệnh)
             new_mspt_status = get_status_color("mspt", state.mc_mspt)
             if new_mspt_status != state.current_alert_status["mspt"]:
                 old = state.current_alert_status["mspt"]
@@ -437,7 +466,15 @@ def get_monitor_stats():
         "disk_max_speed": state.disk_max_speed,
         "net_max_speed": state.net_max_speed,
         "alert_status": state.current_alert_status,
-        "alert_history": state.alert_history[-20:]  # 20 alert gần nhất
+        "alert_history": state.alert_history[-20:],  # 20 alert gần nhất
+        "track_flags": {
+            "tps": getattr(state, 'monitor_track_tps', True),
+            "players": getattr(state, 'monitor_track_players', True),
+            "cpu": getattr(state, 'monitor_track_cpu', True),
+            "ram": getattr(state, 'monitor_track_ram', True),
+            "disk": getattr(state, 'monitor_track_disk', True),
+            "network": getattr(state, 'monitor_track_network', True)
+        }
     }
 
 

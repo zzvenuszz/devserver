@@ -91,6 +91,17 @@ class GlobalState:
         self.disk_max_speed = Config.MONITOR_DISK_MAX_DEFAULT
         self.net_max_speed = Config.MONITOR_NET_MAX_DEFAULT
         
+        # Monitor track flags (được load từ settings)
+        self.monitor_track_tps = True
+        self.monitor_track_players = True
+        self.monitor_track_cpu = True
+        self.monitor_track_ram = True
+        self.monitor_track_disk = True
+        self.monitor_track_network = True
+        
+        # Theme
+        self.theme_mode = "dark"
+        
         # Alert system
         self.current_alert_status = {
             "disk": "green",
@@ -132,6 +143,16 @@ class GlobalState:
         self.mc_max_players = 0
         self.mc_ping = 0
         self.monitor_enabled = False
+        self.monitor_mode = "auto"
+        self.disk_max_speed = Config.MONITOR_DISK_MAX_DEFAULT
+        self.net_max_speed = Config.MONITOR_NET_MAX_DEFAULT
+        self.monitor_track_tps = True
+        self.monitor_track_players = True
+        self.monitor_track_cpu = True
+        self.monitor_track_ram = True
+        self.monitor_track_disk = True
+        self.monitor_track_network = True
+        self.theme_mode = "dark"
         self.current_alert_status = {
             "disk": "green",
             "network": "green",

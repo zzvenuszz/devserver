@@ -396,6 +396,40 @@
             color: white;
         }
 
+        .monitor-track-selector {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .track-toggle {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 11px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .track-toggle.active {
+            background: rgba(76, 175, 80, 0.2);
+            border-color: #4caf50;
+            color: #4caf50;
+        }
+        .track-toggle .toggle-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #555;
+            transition: background 0.2s;
+        }
+        .track-toggle.active .toggle-dot {
+            background: #4caf50;
+        }
+
         .metrics-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -1306,6 +1340,9 @@
                     <button class="mode-btn active" data-mode="auto" onclick="setMonitorMode('auto')">AUTO</button>
                 </div>
             </div>
+            <div class="monitor-track-selector" id="monitor-track-selector">
+                <!-- Toggles sẽ được tạo bởi JavaScript -->
+            </div>
             </div>
 
             <!-- Metrics Grid -->
@@ -1329,7 +1366,7 @@
                     </div>
                     <div>
                         <span class="metric-value" id="val-ram">0</span>
-                        <span class="metric-unit">MB</span>
+                        <span class="metric-unit">GB</span>
                     </div>
                     <span class="metric-status green" id="status-ram">GOOD</span>
                 </div>
@@ -1342,6 +1379,7 @@
                     <div>
                         <span class="metric-value" id="val-disk">0</span>
                         <span class="metric-unit">MB/s</span>
+                        <span style="font-size: 11px; color: var(--text-muted); margin-left: 4px;" id="disk-max-display"></span>
                     </div>
                     <span class="metric-status green" id="status-disk">GOOD</span>
                 </div>
@@ -1354,6 +1392,7 @@
                     <div>
                         <span class="metric-value" id="val-network">0</span>
                         <span class="metric-unit">MB/s</span>
+                        <span style="font-size: 11px; color: var(--text-muted); margin-left: 4px;" id="network-max-display"></span>
                     </div>
                     <span class="metric-status green" id="status-network">GOOD</span>
                 </div>
@@ -1571,19 +1610,28 @@
                 document.getElementById('val-cpu').textContent = stats.system_cpu;
                 updateMetricCard('cpu', stats.system_cpu, 'cpu');
                 
-                // RAM
-                document.getElementById('val-ram').textContent = stats.system_ram;
-                document.getElementById('val-max-ram') && (document.getElementById('val-max-ram').textContent = stats.system_ram_total);
+                // RAM (convert MB to GB)
+                const ramGB = (stats.system_ram / 1024).toFixed(1);
+                document.getElementById('val-ram').textContent = ramGB;
+                document.getElementById('val-max-ram') && (document.getElementById('val-max-ram').textContent = (stats.system_ram_total / 1024).toFixed(0));
                 updateMetricCard('ram', stats.system_ram, 'ram');
                 
                 // Disk
                 const totalDisk = stats.disk_read + stats.disk_write;
                 document.getElementById('val-disk').textContent = totalDisk.toFixed(2);
+                // Hiển thị max speed
+                if (stats.disk_max_speed > 0) {
+                    document.getElementById('disk-max-display').textContent = `(Max: ${stats.disk_max_speed.toFixed(0)} MB/s)`;
+                }
                 updateMetricCard('disk', totalDisk, 'disk');
                 
                 // Network
                 const totalNet = stats.net_sent + stats.net_recv;
                 document.getElementById('val-network').textContent = totalNet.toFixed(2);
+                // Hiển thị max speed
+                if (stats.net_max_speed > 0) {
+                    document.getElementById('network-max-display').textContent = `(Max: ${stats.net_max_speed.toFixed(0)} MB/s)`;
+                }
                 updateMetricCard('network', totalNet, 'network');
                 
                 // TPS
@@ -1736,6 +1784,85 @@
                 });
             }
 
+            // Track toggles state
+            let trackFlags = {
+                tps: true,
+                players: true,
+                cpu: true,
+                ram: true,
+                disk: true,
+                network: true
+            };
+
+            function initTrackToggles() {
+                const container = document.getElementById('monitor-track-selector');
+                const tracks = [
+                    { key: 'tps', label: '⚡ TPS' },
+                    { key: 'players', label: '👥 Players' },
+                    { key: 'cpu', label: '🖥️ CPU' },
+                    { key: 'ram', label: '💾 RAM' },
+                    { key: 'disk', label: '💿 Disk' },
+                    { key: 'network', label: '🌐 Network' }
+                ];
+                
+                container.innerHTML = '';
+                tracks.forEach(track => {
+                    const toggle = document.createElement('div');
+                    toggle.className = 'track-toggle active';
+                    toggle.dataset.key = track.key;
+                    toggle.innerHTML = `<span class="toggle-dot"></span><span>${track.label}</span>`;
+                    toggle.onclick = () => toggleTrack(track.key, toggle);
+                    container.appendChild(toggle);
+                });
+            }
+
+            function toggleTrack(key, element) {
+                trackFlags[key] = !trackFlags[key];
+                element.classList.toggle('active');
+                
+                // Gửi lên server
+                const update = {};
+                update[key] = trackFlags[key];
+                
+                fetch('/api/settings', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        monitor: {
+                            [`track_${key}`]: trackFlags[key]
+                        }
+                    })
+                }).catch(err => console.error('Error updating track setting:', err));
+            }
+
+            function loadSettings() {
+                fetch('/api/settings')
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.monitor) {
+                            trackFlags = {
+                                tps: data.monitor.track_tps,
+                                players: data.monitor.track_players,
+                                cpu: data.monitor.track_cpu,
+                                ram: data.monitor.track_ram,
+                                disk: data.monitor.track_disk,
+                                network: data.monitor.track_network
+                            };
+                            
+                            // Update UI
+                            document.querySelectorAll('.track-toggle').forEach(toggle => {
+                                const key = toggle.dataset.key;
+                                if (trackFlags[key]) {
+                                    toggle.classList.add('active');
+                                } else {
+                                    toggle.classList.remove('active');
+                                }
+                            });
+                        }
+                    })
+                    .catch(err => console.error('Error loading settings:', err));
+            }
+
             function initCharts() {
                 const chartConfig = (label, color, unit) => ({
                     type: 'line',
@@ -1845,6 +1972,8 @@
             // Khởi tạo
             document.addEventListener('DOMContentLoaded', function() {
                 initCharts();
+                initTrackToggles();
+                loadSettings();
             });
 
             function applyThemeEngine() {

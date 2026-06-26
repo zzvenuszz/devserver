@@ -8,6 +8,10 @@ from server.services.monitor import (
     get_monitor_stats, get_chart_data, toggle_monitor,
     set_monitor_mode, benchmark_disk_network, start_monitor_threads
 )
+from server.utils.persistence import (
+    load_settings, save_settings, get_current_settings,
+    load_benchmark_results, save_benchmark_results
+)
 
 monitor_bp = Blueprint('monitor', __name__)
 
@@ -88,3 +92,56 @@ def api_benchmark():
     # Chạy trong thread riêng để không block
     threading.Thread(target=benchmark_disk_network, daemon=True).start()
     return jsonify({"status": "success", "message": "Benchmark started"})
+
+
+@monitor_bp.route("/api/settings", methods=["GET"])
+def api_get_settings():
+    """Lấy settings hiện tại"""
+    return jsonify(get_current_settings())
+
+
+@monitor_bp.route("/api/settings", methods=["POST"])
+def api_update_settings():
+    """Cập nhật settings"""
+    data = request.get_json()
+    
+    try:
+        # Load settings hiện tại
+        settings = load_settings()
+        
+        # Update monitor settings
+        if "monitor" in data:
+            settings["monitor"].update(data["monitor"])
+            
+            # Áp dụng vào state
+            state.monitor_mode = settings["monitor"].get("mode", "auto")
+            state.monitor_track_tps = settings["monitor"].get("track_tps", True)
+            state.monitor_track_players = settings["monitor"].get("track_players", True)
+            state.monitor_track_cpu = settings["monitor"].get("track_cpu", True)
+            state.monitor_track_ram = settings["monitor"].get("track_ram", True)
+            state.monitor_track_disk = settings["monitor"].get("track_disk", True)
+            state.monitor_track_network = settings["monitor"].get("track_network", True)
+            
+            # Nếu mode là "on", tự động bật monitor
+            if state.monitor_mode == "on":
+                state.monitor_enabled = True
+                state.monitor_last_active = time.time()
+        
+        # Update theme settings
+        if "theme" in data:
+            settings["theme"].update(data["theme"])
+            state.theme_mode = settings["theme"].get("mode", "dark")
+        
+        # Lưu vào file
+        save_settings(settings)
+        
+        return jsonify({
+            "status": "success",
+            "settings": settings
+        })
+    
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500

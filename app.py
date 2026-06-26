@@ -8,6 +8,8 @@ import time
 from server import create_app
 from server.services import fetch_server_info, run_paper, run_playit, monitor_java
 from server.services.monitor import start_monitor_threads, benchmark_disk_network
+from server.utils.persistence import load_settings, apply_settings_to_state, save_benchmark_results
+from server.config import state
 
 
 # Tạo Flask app
@@ -28,6 +30,12 @@ def start_background_services():
 
 
 if __name__ == "__main__":
+    # Load settings từ disk trước khi khởi chạy services
+    print("[SYSTEM] Đang load settings từ /data/panel/...")
+    settings = load_settings()
+    apply_settings_to_state(settings)
+    print(f"[SYSTEM] Settings đã được load: mode={state.monitor_mode}, theme={state.theme_mode}")
+    
     # Khởi chạy background services
     start_background_services()
     
