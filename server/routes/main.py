@@ -1,6 +1,7 @@
 """
 Main Routes - Trang chính và File Manager UI
 """
+import os
 from flask import Blueprint, render_template, request
 from server.config import state, Config, BASE_DATA_DIR
 from server.services.minecraft import is_server_running
