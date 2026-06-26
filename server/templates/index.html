@@ -1608,13 +1608,13 @@
             function updateMetrics(stats) {
                 // CPU
                 document.getElementById('val-cpu').textContent = stats.system_cpu;
-                updateMetricCard('cpu', stats.system_cpu, 'cpu');
+                updateMetricCard('cpu', stats.system_cpu, 'cpu', stats.alert_status?.cpu);
                 
                 // RAM (convert MB to GB)
                 const ramGB = (stats.system_ram / 1024).toFixed(1);
                 document.getElementById('val-ram').textContent = ramGB;
                 document.getElementById('val-max-ram') && (document.getElementById('val-max-ram').textContent = (stats.system_ram_total / 1024).toFixed(0));
-                updateMetricCard('ram', stats.system_ram, 'ram');
+                updateMetricCard('ram', stats.system_ram, 'ram', stats.alert_status?.ram);
                 
                 // Disk
                 const totalDisk = stats.disk_read + stats.disk_write;
@@ -1623,7 +1623,7 @@
                 if (stats.disk_max_speed > 0) {
                     document.getElementById('disk-max-display').textContent = `(Max: ${stats.disk_max_speed.toFixed(0)} MB/s)`;
                 }
-                updateMetricCard('disk', totalDisk, 'disk');
+                updateMetricCard('disk', totalDisk, 'disk', stats.alert_status?.disk);
                 
                 // Network
                 const totalNet = stats.net_sent + stats.net_recv;
@@ -1632,15 +1632,15 @@
                 if (stats.net_max_speed > 0) {
                     document.getElementById('network-max-display').textContent = `(Max: ${stats.net_max_speed.toFixed(0)} MB/s)`;
                 }
-                updateMetricCard('network', totalNet, 'network');
+                updateMetricCard('network', totalNet, 'network', stats.alert_status?.network);
                 
                 // TPS
                 document.getElementById('val-tps').textContent = stats.mc_tps.toFixed(1);
-                updateMetricCard('tps', stats.mc_tps, 'tps');
+                updateMetricCard('tps', stats.mc_tps, 'tps', stats.alert_status?.tps);
                 
                 // MSPT
                 document.getElementById('val-mspt').textContent = stats.mc_mspt.toFixed(1);
-                updateMetricCard('mspt', stats.mc_mspt, 'mspt');
+                updateMetricCard('mspt', stats.mc_mspt, 'mspt', stats.alert_status?.mspt);
                 
                 // Players
                 document.getElementById('val-players').textContent = stats.mc_players;
@@ -1650,24 +1650,23 @@
                 document.getElementById('val-ping').textContent = stats.mc_ping;
             }
 
-            function updateMetricCard(metric, value, type) {
+            function updateMetricCard(metric, value, type, backendStatus) {
                 const card = document.getElementById(`card-${metric}`);
                 const statusEl = document.getElementById(`status-${metric}`);
                 
-                // Xác định status
+                // Ưu tiên status từ backend nếu có, nếu không thì tự tính
                 let status = 'green';
-                if (type === 'disk') {
-                    if (value < 5) status = 'red';
-                    else if (value < 20) status = 'yellow';
-                } else if (type === 'network') {
-                    if (value < 2) status = 'red';
-                    else if (value < 10) status = 'yellow';
-                } else if (type === 'tps') {
-                    if (value < 18) status = 'red';
-                    else if (value < 19.8) status = 'yellow';
-                } else if (type === 'mspt') {
-                    if (value > 40) status = 'red';
-                    else if (value > 20) status = 'yellow';
+                if (backendStatus) {
+                    status = backendStatus;
+                } else {
+                    // Fallback: tự tính cho CPU/RAM nếu backend chưa có
+                    if (type === 'cpu') {
+                        if (value > 90) status = 'red';
+                        else if (value > 70) status = 'yellow';
+                    } else if (type === 'ram') {
+                        // RAM không có status trong backend, giữ nguyên green
+                        status = 'green';
+                    }
                 }
                 
                 // Cập nhật UI

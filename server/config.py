@@ -104,6 +104,8 @@ class GlobalState:
         
         # Alert system
         self.current_alert_status = {
+            "cpu": "green",
+            "ram": "green",
             "disk": "green",
             "network": "green",
             "tps": "green",
@@ -154,6 +156,8 @@ class GlobalState:
         self.monitor_track_network = True
         self.theme_mode = "dark"
         self.current_alert_status = {
+            "cpu": "green",
+            "ram": "green",
             "disk": "green",
             "network": "green",
             "tps": "green",

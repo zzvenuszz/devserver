@@ -141,6 +141,22 @@ def get_status_color(metric_type, value):
         else:  # >= 50% max speed - tải nặng
             return "red"
     
+    elif metric_type == "cpu":
+        if value > 90:
+            return "red"
+        elif value > 70:
+            return "yellow"
+        else:
+            return "green"
+    
+    elif metric_type == "ram":
+        if value > 90:
+            return "red"
+        elif value > 70:
+            return "yellow"
+        else:
+            return "green"
+    
     elif metric_type == "tps":
         if value >= Config.MONITOR_TPS_GOOD:
             return "green"
@@ -200,6 +216,28 @@ def send_minecraft_alert(metric_type, old_status, new_status, value):
             color = "yellow"
         else:
             msg = "[Cảnh báo] Network đang căng thẳng (bandwidth cao). Có thể có lag!"
+            color = "red"
+    
+    elif metric_type == "cpu":
+        if new_status == "green":
+            msg = "[Giám sát] CPU đang ổn định."
+            color = "green"
+        elif new_status == "yellow":
+            msg = "[Cảnh báo] CPU đang ở mức cao."
+            color = "yellow"
+        else:
+            msg = "[Cảnh báo] CPU quá tải! Server có thể bị lag!"
+            color = "red"
+    
+    elif metric_type == "ram":
+        if new_status == "green":
+            msg = "[Giám sát] RAM đang ổn định."
+            color = "green"
+        elif new_status == "yellow":
+            msg = "[Cảnh báo] RAM đang ở mức cao."
+            color = "yellow"
+        else:
+            msg = "[Cảnh báo] RAM gần đầy! Có thể gây crash!"
             color = "red"
     
     elif metric_type == "tps":
@@ -369,6 +407,23 @@ def alert_manager():
             if not state.monitor_enabled:
                 time.sleep(1)
                 continue
+            
+            # Kiểm tra CPU (chỉ nếu được bật)
+            if getattr(state, 'monitor_track_cpu', True):
+                new_cpu_status = get_status_color("cpu", state.system_cpu)
+                if new_cpu_status != state.current_alert_status["cpu"]:
+                    old = state.current_alert_status["cpu"]
+                    state.current_alert_status["cpu"] = new_cpu_status
+                    send_minecraft_alert("cpu", old, new_cpu_status, state.system_cpu)
+            
+            # Kiểm tra RAM (chỉ nếu được bật)
+            if getattr(state, 'monitor_track_ram', True):
+                ram_percent = (state.system_ram / state.system_ram_total * 100) if state.system_ram_total > 0 else 0
+                new_ram_status = get_status_color("ram", ram_percent)
+                if new_ram_status != state.current_alert_status["ram"]:
+                    old = state.current_alert_status["ram"]
+                    state.current_alert_status["ram"] = new_ram_status
+                    send_minecraft_alert("ram", old, new_ram_status, ram_percent)
             
             # Kiểm tra Disk (chỉ nếu được bật)
             if getattr(state, 'monitor_track_disk', True):
