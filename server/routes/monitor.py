@@ -1,11 +1,12 @@
 """
 Monitor Routes - API endpoints cho dashboard monitor
 """
+import threading
 from flask import Blueprint, jsonify, request
 from server.config import state, Config
 from server.services.monitor import (
     get_monitor_stats, get_chart_data, toggle_monitor,
-    start_monitor_threads
+    set_monitor_mode, benchmark_disk_network, start_monitor_threads
 )
 
 monitor_bp = Blueprint('monitor', __name__)
@@ -33,6 +34,18 @@ def api_monitor_toggle():
     })
 
 
+@monitor_bp.route("/api/monitor/mode", methods=["POST"])
+def api_monitor_mode():
+    """Đặt chế độ monitor: on/off/auto"""
+    data = request.get_json()
+    mode = data.get("mode", "auto")
+    result = set_monitor_mode(mode)
+    return jsonify({
+        "status": "success",
+        "mode": result
+    })
+
+
 @monitor_bp.route("/api/monitor/settings", methods=["GET"])
 def api_monitor_settings_get():
     """Lấy cấu hình monitor"""
@@ -48,7 +61,9 @@ def api_monitor_settings_get():
             "mspt_warn": Config.MONITOR_MSPT_WARN
         },
         "cooldown": Config.MONITOR_COOLDOWN,
-        "chart_duration": Config.MONITOR_CHART_DURATION
+        "chart_duration": Config.MONITOR_CHART_DURATION,
+        "disk_max": state.disk_max_speed,
+        "net_max": state.net_max_speed
     })
 
 
@@ -65,3 +80,11 @@ def api_start_threads():
     """Khởi chạy monitor threads (gọi một lần khi app start)"""
     start_monitor_threads()
     return jsonify({"status": "success", "message": "Monitor threads started"})
+
+
+@monitor_bp.route("/api/monitor/benchmark", methods=["POST"])
+def api_benchmark():
+    """Chạy benchmark disk/network"""
+    # Chạy trong thread riêng để không block
+    threading.Thread(target=benchmark_disk_network, daemon=True).start()
+    return jsonify({"status": "success", "message": "Benchmark started"})

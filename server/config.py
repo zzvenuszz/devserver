@@ -2,6 +2,7 @@
 Cấu hình tập trung cho ứng dụng Flask
 """
 import os
+import time
 
 # Cấu hình cơ bản
 BASE_DATA_DIR = "/data"
@@ -47,6 +48,12 @@ class Config:
     # Monitor Settings
     MONITOR_COOLDOWN = 300  # 5 phút giữa các alert lặp lại
     MONITOR_CHART_DURATION = 1800  # 30 phút lịch sử
+    
+    # Benchmark Settings
+    MONITOR_BENCHMARK_FILE_SIZE = 10  # MB - kích thước file test
+    MONITOR_BENCHMARK_NET_SIZE = 1  # MB - kích thước file test network
+    MONITOR_DISK_MAX_DEFAULT = 100  # MB/s - default nếu benchmark fail
+    MONITOR_NET_MAX_DEFAULT = 50   # MB/s - default nếu benchmark fail
 
 
 # Global state (sẽ được quản lý bởi services)
@@ -79,6 +86,10 @@ class GlobalState:
         
         # Monitor control
         self.monitor_enabled = False
+        self.monitor_mode = "auto"  # "on", "off", "auto"
+        self.monitor_last_active = time.time()
+        self.disk_max_speed = Config.MONITOR_DISK_MAX_DEFAULT
+        self.net_max_speed = Config.MONITOR_NET_MAX_DEFAULT
         
         # Alert system
         self.current_alert_status = {

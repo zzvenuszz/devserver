@@ -2,33 +2,134 @@
 Monitor Service - Giám sát tài nguyên hệ thống và Minecraft Server
 """
 import time
+import os
 import psutil
 import threading
+import tempfile
 from datetime import datetime
 from server.config import state, Config
 from server.utils import add_log
 from server.services.minecraft import send_command
 
 
+def benchmark_disk_network():
+    """
+    Benchmark tốc độ Disk và Network khi khởi động
+    Lưu max speed vào state để dùng làm mốc 100%
+    """
+    add_log("Đang chạy benchmark Disk & Network...", "monitor")
+    
+    try:
+        # Benchmark Disk - tạo file 10MB và đo tốc độ ghi/đọc
+        test_file = os.path.join(tempfile.gettempdir(), "benchmark_test.dat")
+        test_size = Config.MONITOR_BENCHMARK_FILE_SIZE * 1024 * 1024  # MB to bytes
+        test_data = os.urandom(test_size)
+        
+        # Test write speed
+        start_time = time.time()
+        with open(test_file, "wb") as f:
+            f.write(test_data)
+            f.flush()
+            os.fsync(f.fileno())
+        write_time = time.time() - start_time
+        write_speed = (test_size / 1024 / 1024) / write_time if write_time > 0 else 0
+        
+        # Test read speed
+        start_time = time.time()
+        with open(test_file, "rb") as f:
+            _ = f.read()
+        read_time = time.time() - start_time
+        read_speed = (test_size / 1024 / 1024) / read_time if read_time > 0 else 0
+        
+        # Cleanup
+        try:
+            os.remove(test_file)
+        except Exception:
+            pass
+        
+        # Lấy max speed
+        disk_max = max(write_speed, read_speed)
+        state.disk_max_speed = max(disk_max, Config.MONITOR_DISK_MAX_DEFAULT)
+        
+        # Benchmark Network - download từ localhost
+        try:
+            import http.server
+            import socketserver
+            import urllib.request
+            import threading
+            
+            # Tạo file nhỏ để serve
+            net_test_file = os.path.join(tempfile.gettempdir(), "net_benchmark.dat")
+            net_test_size = Config.MONITOR_BENCHMARK_NET_SIZE * 1024 * 1024
+            with open(net_test_file, "wb") as f:
+                f.write(os.urandom(net_test_size))
+            
+            # Start server
+            PORT = 18999
+            handler = http.server.SimpleHTTPRequestHandler
+            with socketserver.TCPServer(("", PORT), handler) as httpd:
+                server_thread = threading.Thread(target=httpd.serve_forever)
+                server_thread.daemon = True
+                server_thread.start()
+                
+                # Test download
+                url = f"http://localhost:{PORT}/net_benchmark.dat"
+                start_time = time.time()
+                urllib.request.urlopen(url, timeout=5)
+                download_time = time.time() - start_time
+                net_speed = (net_test_size / 1024 / 1024) / download_time if download_time > 0 else 0
+                
+                httpd.shutdown()
+            
+            # Cleanup
+            try:
+                os.remove(net_test_file)
+            except Exception:
+                pass
+            
+            state.net_max_speed = max(net_speed, Config.MONITOR_NET_MAX_DEFAULT)
+            
+        except Exception as e:
+            add_log(f"Network benchmark failed: {e}", "monitor")
+            state.net_max_speed = Config.MONITOR_NET_MAX_DEFAULT
+        
+        add_log(f"Benchmark hoàn tất: Disk Max={state.disk_max_speed:.1f} MB/s, Net Max={state.net_max_speed:.1f} MB/s", "monitor")
+        
+    except Exception as e:
+        add_log(f"Benchmark failed: {e}", "monitor")
+        state.disk_max_speed = Config.MONITOR_DISK_MAX_DEFAULT
+        state.net_max_speed = Config.MONITOR_NET_MAX_DEFAULT
+
+
 def get_status_color(metric_type, value):
     """
-    Xác định màu trạng thái dựa trên ngưỡng
+    Xác định màu trạng thái dựa trên tỷ lệ % của max speed
     Returns: "green", "yellow", "red"
     """
     if metric_type == "disk":
-        if value >= Config.MONITOR_DISK_GOOD:
-            return "green"
-        elif value >= Config.MONITOR_DISK_WARN:
-            return "yellow"
+        if state.disk_max_speed > 0:
+            ratio = (value / state.disk_max_speed) * 100
         else:
+            ratio = 0
+        
+        if ratio >= 50:  # >= 50% max speed
+            return "green"
+        elif ratio >= 20:  # 20-50% max speed
+            return "yellow"
+        else:  # < 20% max speed
             return "red"
     
     elif metric_type == "network":
-        if value >= Config.MONITOR_NET_GOOD:
-            return "green"
-        elif value >= Config.MONITOR_NET_WARN:
-            return "yellow"
+        if state.net_max_speed > 0:
+            ratio = (value / state.net_max_speed) * 100
         else:
+            ratio = 0
+        
+        if ratio >= 50:  # >= 50% max speed
+            return "green"
+        elif ratio >= 20:  # 20-50% max speed
+            return "yellow"
+        else:  # < 20% max speed
             return "red"
     
     elif metric_type == "tps":
@@ -192,12 +293,7 @@ def monitor_minecraft():
                 send_command("list")
                 time.sleep(0.5)
                 
-                # Đọc log để parse TPS, MSPT, Players
-                # (Log đã được parse bởi parse_and_add_raw_log)
-                # Chúng ta sẽ đọc từ state nếu có
-                
                 # Ping server (giả lập bằng thời gian response)
-                # Thực tế cần measure từ server response
                 state.mc_ping = 0  # Sẽ được cập nhật bởi API
             
             time.sleep(5)  # Check mỗi 5 giây
@@ -325,6 +421,7 @@ def get_monitor_stats():
     """Lấy tất cả metrics monitor hiện tại"""
     return {
         "enabled": state.monitor_enabled,
+        "mode": state.monitor_mode,
         "system_cpu": state.system_cpu,
         "system_ram": state.system_ram,
         "system_ram_total": state.system_ram_total,
@@ -337,6 +434,8 @@ def get_monitor_stats():
         "mc_players": state.mc_players,
         "mc_max_players": state.mc_max_players,
         "mc_ping": state.mc_ping,
+        "disk_max_speed": state.disk_max_speed,
+        "net_max_speed": state.net_max_speed,
         "alert_status": state.current_alert_status,
         "alert_history": state.alert_history[-20:]  # 20 alert gần nhất
     }
@@ -350,7 +449,22 @@ def get_chart_data():
 def toggle_monitor():
     """Bật/tắt monitor"""
     state.monitor_enabled = not state.monitor_enabled
+    if state.monitor_enabled:
+        state.monitor_last_active = time.time()
     return state.monitor_enabled
+
+
+def set_monitor_mode(mode):
+    """Đặt chế độ monitor: 'on', 'off', 'auto'"""
+    if mode in ["on", "off", "auto"]:
+        state.monitor_mode = mode
+        if mode == "on":
+            state.monitor_enabled = True
+            state.monitor_last_active = time.time()
+        elif mode == "off":
+            state.monitor_enabled = False
+        # auto mode sẽ được xử lý bởi frontend
+    return state.monitor_mode
 
 
 def parse_tps_from_log(line):

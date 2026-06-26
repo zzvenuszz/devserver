@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <title>VnMine Web Panel Ultimate</title>
+    <title>VnMine Panel</title>
     <meta charset="utf-8">
     <style>
         :root {
@@ -87,7 +87,7 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.15);
             flex-shrink: 0;
         }
-        .navbar h2 { margin: 0; color: #4caf50; font-size: 20px; }
+        .navbar h2 { margin: 0; color: #4caf50; font-size: 18px; }
         .nav-right-controls { display: flex; align-items: center; gap: 15px; }
         .stats-bar { display: flex; gap: 12px; font-size: 13px; color: var(--text-muted); align-items: center; }
         .stats-bar span { background: var(--bg-card); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color); color: var(--text-main); }
@@ -372,6 +372,30 @@
             transform: translateX(24px);
         }
 
+        .monitor-mode-selector {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 2px;
+        }
+        .mode-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 4px 10px;
+            font-size: 11px;
+            font-weight: bold;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .mode-btn.active {
+            background: #4caf50;
+            color: white;
+        }
+
         .metrics-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -649,7 +673,7 @@
                 <span>Server MC: <strong class="status-{{ 'green' if stats.status == 'RUNNING' else 'red' }}">{{ stats.status }}</strong></span>
                 <span>MC RAM: <strong style="color:#28a745;">{{ stats.ram_used }} MB</strong></span>
                 <span>MC CPU: <strong style="color:#007bff;">{{ stats.cpu }} %</strong></span>
-                <a href="/logout" class="logout-btn">🔒 Đăng xuất</a>
+                <a href="/logout" class="logout-btn" title="Đăng xuất">🔒</a>
             </div>
         </div>
     </div>
@@ -935,7 +959,7 @@
                                                 {% endif %}
                                             {% endif %}
                                             <button class="btn-action btn-ren" onclick="openRenameModal('{{ item.raw_path }}', '{{ item.name }}')">Sửa</button>
-                                            <button class="btn-action btn-del" onclick="openDeleteModal('{{ item.raw_path }}', {{ 'true' if item.is_dir else 'false' }})">Xóa</button>
+                                            <button class="btn-action btn-del" data-path="{{ item.raw_path|escape }}" data-is-dir="{{ 'true' if item.is_dir else 'false' }}" onclick="openDeleteModal(this.dataset.path, this.dataset.isDir === 'true')">Xóa</button>
                                         {% endif %}
                                     </div>
                                 </td>
@@ -1273,10 +1297,15 @@
                     <span>📊</span>
                     <span>Monitor Dashboard</span>
                 </div>
-                <div class="monitor-toggle-wrapper">
-                    <span class="monitor-toggle-label" id="monitor-status-text">Đang TẮT</span>
-                    <div class="toggle-switch" id="monitor-toggle" onclick="toggleMonitor()"></div>
+            <div class="monitor-toggle-wrapper">
+                <span class="monitor-toggle-label" id="monitor-status-text">Đang TẮT</span>
+                <div class="toggle-switch" id="monitor-toggle" onclick="toggleMonitor()"></div>
+                <div class="monitor-mode-selector">
+                    <button class="mode-btn" data-mode="on" onclick="setMonitorMode('on')">ON</button>
+                    <button class="mode-btn" data-mode="off" onclick="setMonitorMode('off')">OFF</button>
+                    <button class="mode-btn active" data-mode="auto" onclick="setMonitorMode('auto')">AUTO</button>
                 </div>
+            </div>
             </div>
 
             <!-- Metrics Grid -->
@@ -1465,6 +1494,32 @@
                         stopMonitorPolling();
                     }
                 });
+            }
+
+            function setMonitorMode(mode) {
+                // Cập nhật UI buttons
+                document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+                document.querySelector(`.mode-btn[data-mode="${mode}"]`).classList.add('active');
+                
+                // Gửi mode đến server
+                fetch('/api/monitor/mode', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ mode: mode })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    console.log('Monitor mode:', data.mode);
+                    // Nếu chuyển sang ON, tự động bật monitor
+                    if (data.mode === 'on' && !monitorEnabled) {
+                        toggleMonitor();
+                    }
+                    // Nếu chuyển sang OFF, tự động tắt monitor
+                    else if (data.mode === 'off' && monitorEnabled) {
+                        toggleMonitor();
+                    }
+                })
+                .catch(err => console.error('Error setting monitor mode:', err));
             }
 
             function updateMonitorUI() {
