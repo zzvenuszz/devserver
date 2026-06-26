@@ -8,43 +8,60 @@ jobs:
   sync:
     runs-on: ubuntu-latest
 
+    # ============================================================
+    # Khai báo GitHub Secrets.
+    #
+    # Quy tắc:
+    #   HF_TOKEN_<USERNAME_IN_HOA>
+    #
+    # Ví dụ:
+    #   HF_TOKEN_NOOBSCLAN101
+    #   HF_TOKEN_ZZVENUSZZ
+    #
+    # Khi thêm user mới:
+    #   1. Tạo GitHub Secret.
+    #   2. Thêm 1 dòng bên dưới.
+    # ============================================================
+    env:
+      HF_TOKEN_NOOBSCLAN101: ${{ secrets.HF_TOKEN_NOOBSCLAN101 }}
+      HF_TOKEN_ZZVENUSZZ: ${{ secrets.HF_TOKEN_ZZVENUSZZ }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
-      - name: Debug Secret
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: |
-          if [ -z "$HF_TOKEN" ]; then
-            echo "Error: HF_TOKEN is empty!"
-            exit 1
-          else
-            echo "HF_TOKEN length is: ${#HF_TOKEN}"
-          fi
-
       - name: Push to multiple Hugging Face Spaces
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           # ============================================================
-          # NOTE:
-          # Thêm Space mới bằng cách thêm 1 dòng vào mảng "targets"
-          # theo định dạng:
+          # Danh sách Space cần đồng bộ.
+          #
+          # Định dạng:
           #
           #   "USERNAME OWNER/SPACE_NAME"
           #
           # Ví dụ:
           #   "noobsclan101 noobsclan101/devserver"
           #   "zzvenuszz zzvenuszz/testpaper"
-          #   "myaccount myaccount/my-space"
           #
-          # Lưu ý:
-          # - USERNAME là tài khoản dùng để đăng nhập.
-          # - OWNER/SPACE_NAME là đường dẫn đầy đủ của Space.
-          # - HF_TOKEN phải có quyền ghi (Write) vào tất cả các Space.
+          # Khi thêm Space mới:
+          #
+          # 1. Tạo GitHub Secret:
+          #      HF_TOKEN_<USERNAME_IN_HOA>
+          #
+          # 2. Khai báo secret trong env.
+          #
+          # 3. Thêm 1 dòng vào targets.
+          #
+          # Nếu Secret không tồn tại:
+          #   -> Bỏ qua Space đó.
+          #
+          # Nếu push thất bại:
+          #   -> Tiếp tục Space tiếp theo.
+          #
+          # Workflow chỉ thất bại khi KHÔNG có Space nào
+          # được push thành công.
           # ============================================================
 
           targets=(
@@ -52,16 +69,43 @@ jobs:
             "zzvenuszz zzvenuszz/testpaper"
           )
 
+          SUCCESS=0
+
           for target in "${targets[@]}"; do
             read -r user repo <<< "$target"
 
-            echo "========================================"
-            echo "Syncing to: $repo"
-            echo "Using account: $user"
+            USER_UPPER=$(echo "$user" | tr '[:lower:]' '[:upper:]')
+            TOKEN_VAR="HF_TOKEN_${USER_UPPER}"
+            TOKEN="${!TOKEN_VAR}"
 
-            git push \
-              "https://${user}:${HF_TOKEN}@huggingface.co/spaces/${repo}" \
-              main --force
+            echo "=================================================="
+            echo "User   : $user"
+            echo "Repo   : $repo"
 
-            echo "Done: $repo"
+            if [ -z "$TOKEN" ]; then
+              echo "Skip   : Secret '$TOKEN_VAR' không tồn tại."
+              continue
+            fi
+
+            echo "Token  : $TOKEN_VAR"
+
+            if git push \
+              "https://${user}:${TOKEN}@huggingface.co/spaces/${repo}" \
+              main --force; then
+
+              echo "Status : SUCCESS"
+              SUCCESS=1
+            else
+              echo "Status : FAILED"
+            fi
           done
+
+          echo "=================================================="
+
+          if [ "$SUCCESS" -eq 1 ]; then
+            echo "Ít nhất một Space đã được đồng bộ thành công."
+            exit 0
+          else
+            echo "Không có Space nào được đồng bộ thành công."
+            exit 1
+          fi
