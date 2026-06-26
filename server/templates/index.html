@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <title>VnMine Web Panel Ultimate</title>
+    <meta charset="utf-8">
+    <style>
+        :root {
+            --bg-main: #1e1e24;
+            --bg-nav: #111116;
+            --bg-tabs: #16161a;
+            --bg-card: #25252b;
+            --bg-console: #0c0c0f;
+            --bg-log-box: #050507;
+            --bg-input: #111;
+            --bg-quick-btn: #1b1b20;
+            --text-main: #e0e0e6;
+            --text-muted: #aaa;
+            --text-dark-gray: #888;
+            --border-color: #3d3d45;
+            --border-light: #2d2d35;
+            --border-focus: #4caf50;
+            
+            --log-sys: #a0a0a0;
+            --log-command: #39e360;
+            --log-error: #ff5252;
+            --log-plugins: #1ce1ff;
+            --log-chat: #ff9233;
+            --log-playit: #b07fff;
+            --log-monitor: #8c8c8c;
+            --link-color: #38b6ff;
+            --link-dir-color: #ffc107;
+        }
+
+        [data-theme="light"] {
+            --bg-main: #f4f6f9;
+            --bg-nav: #ffffff;
+            --bg-tabs: #eaecef;
+            --bg-card: #ffffff;
+            --bg-console: #f8f9fa;
+            --bg-log-box: #ffffff;
+            --bg-input: #e9ecef;
+            --bg-quick-btn: #f1f3f5;
+            --text-main: #212529;
+            --text-muted: #495057;
+            --text-dark-gray: #6c757d;
+            --border-color: #ced4da;
+            --border-light: #dee2e6;
+            --border-focus: #218838;
+            
+            --log-sys: #333333;
+            --log-command: #155724;
+            --log-error: #721c24;
+            --log-plugins: #0c5460;
+            --log-chat: #a04000;
+            --log-playit: #4a148c;
+            --log-monitor: #5a5a5a;
+            --link-color: #0056b3;
+            --link-dir-color: #b15b00;
+        }
+
+        html, body { 
+            height: 100vh; 
+            margin: 0; 
+            padding: 0; 
+            overflow: hidden; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-main); 
+            color: var(--text-main); 
+            display: flex;
+            flex-direction: column;
+            transition: background 0.3s, color 0.3s;
+        }
+        .navbar { 
+            background: var(--bg-nav);
+            padding: 10px 20px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+            flex-shrink: 0;
+        }
+        .navbar h2 { margin: 0; color: #4caf50; font-size: 20px; }
+        .nav-right-controls { display: flex; align-items: center; gap: 15px; }
+        .stats-bar { display: flex; gap: 12px; font-size: 13px; color: var(--text-muted); align-items: center; }
+        .stats-bar span { background: var(--bg-card); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color); color: var(--text-main); }
+        .logout-btn { background: #dc3545; color: white; text-decoration: none; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; }
+        
+        .theme-selector {
+            display: flex;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 2px;
+            gap: 2px;
+        }
+        .theme-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 4px 10px;
+            font-size: 11px;
+            font-weight: bold;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .theme-btn.active {
+            background: #4caf50;
+            color: white;
+        }
+
+        .tabs { 
+            display: flex; 
+            background: var(--bg-tabs);
+            border-bottom: 2px solid var(--border-light); 
+            flex-shrink: 0;
+        }
+        .tab-btn { padding: 12px 25px; border: none; background: none; color: var(--text-dark-gray); font-size: 15px; cursor: pointer; font-weight: bold; text-decoration: none; }
+        .tab-btn.active { color: #4caf50; border-bottom: 3px solid #4caf50; background: var(--bg-main); }
+        
+        .container { 
+            padding: 15px; 
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; 
+            box-sizing: border-box;
+        }
+        
+        /* CONSOLE LAYOUT */
+        .console-layout {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            overflow: hidden;
+        }
+        .console-filter-bar { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 10px; 
+            flex-shrink: 0; 
+        }
+        .console-filter-tabs { display: flex; gap: 5px; flex-wrap: wrap; }
+        .filter-btn { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-muted); padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
+        .filter-btn.active { background: #4caf50; color: white; border-color: #4caf50; }
+        
+        .btn-copy-logs { background: #007bff; color: white; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 5px; }
+
+        .console-main-frame {
+            display: grid;
+            grid-template-columns: 7fr 3fr;
+            gap: 15px;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .console-box { 
+            background: var(--bg-console); 
+            border: 1px solid var(--border-color);
+            border-radius: 6px; 
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        #logs-output { 
+            flex: 1;
+            overflow-y: auto; 
+            font-family: 'Courier New', monospace; 
+            font-size: 13px; 
+            line-height: 1.6; 
+            padding: 10px;
+            background: var(--bg-log-box);
+            border: 1px solid var(--border-light);
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        
+        .log-item { margin-bottom: 2px; white-space: pre-wrap; word-break: break-all; color: var(--text-main); }
+        .log-system { color: var(--log-sys); }
+        .log-command { color: var(--log-command); font-weight: bold; } 
+        .log-error { color: var(--log-error); font-weight: bold; background: rgba(255,77,77,0.08); padding: 1px 4px; border-radius: 2px; }
+        .log-plugins { color: var(--log-plugins); font-weight: bold; }
+        .log-chat { color: var(--log-chat); background: rgba(253,126,20,0.08); padding: 2px 4px; font-weight: 500; border-radius: 2px; }
+        .log-playit { color: var(--log-playit); }
+        .log-monitor { color: var(--log-monitor); font-size: 12px; }
+        
+        .cmd-container { position: relative; flex-shrink: 0; }
+        .cmd-input-group { display: flex; gap: 10px; }
+        #cmd-input { flex: 1; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main); padding: 12px; font-family: monospace; border-radius: 4px; font-size: 14px; }
+        #cmd-input:focus { border-color: var(--border-focus); outline: none; }
+        #autocomplete-box { position: absolute; bottom: 50px; left: 0; right: 0; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 4px; max-height: 150px; overflow-y: auto; z-index: 100; display: none; }
+        .suggest-item { padding: 8px 12px; cursor: pointer; font-family: monospace; font-size: 13px; color: var(--text-muted); }
+        .suggest-item:hover, .suggest-item.selected { background: var(--bg-input); color: #4caf50; }
+        #btn-send { background: #4caf50; color: white; border: none; padding: 0 25px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+
+        .quick-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .quick-panel h3 { margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #4caf50; border-bottom: 1px solid var(--border-color); padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .cmd-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+        .cmd-group-title { font-size: 11px; font-weight: bold; color: var(--text-dark-gray); margin-bottom: 2px; text-transform: uppercase; }
+        .btn-quick { background: var(--bg-quick-btn); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 12px; text-align: left; border-radius: 4px; cursor: pointer; font-family: monospace; font-size: 12px; font-weight: 500; transition: all 0.2s; }
+        .btn-quick:hover { background: #4caf50; color: white; border-color: #4caf50; transform: translateX(2px); }
+
+        /* FILE MANAGER STYLE */
+        .fm-layout { 
+            display: grid; 
+            grid-template-columns: 1.2fr 0.8fr; 
+            gap: 15px; 
+            flex: 1;
+            overflow: hidden;
+        }
+        @media (max-width: 1000px) { 
+            .fm-layout { grid-template-columns: 1fr; overflow-y: auto; } 
+        }
+        .card { 
+            background: var(--bg-card); 
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            padding: 15px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .card h3 { margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; color: #4caf50; flex-shrink: 0; }
+        
+        .fm-toolbar { 
+            display: flex; 
+            gap: 10px; 
+            margin-bottom: 15px; 
+            background: var(--bg-quick-btn); 
+            border: 1px solid var(--border-color); 
+            padding: 10px; 
+            border-radius: 4px; 
+            align-items: center; 
+            flex-shrink: 0; 
+            justify-content: space-between;
+        }
+        .toolbar-left { display: flex; gap: 10px; align-items: center; flex: 1; }
+        .toolbar-right { display: flex; gap: 10px; align-items: center; }
+        
+        .table-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid var(--border-light);
+            border-radius: 4px;
+        }
+        .fm-table { width: 100%; border-collapse: collapse; font-family: monospace; font-size: 13px; text-align: left; }
+        .fm-table th { background: var(--bg-tabs); padding: 10px; color: var(--text-muted); border-bottom: 2px solid var(--border-light); position: sticky; top: 0; z-index: 10; }
+        .fm-table td { padding: 8px 10px; border-bottom: 1px solid var(--border-light); vertical-align: middle; color: var(--text-main); }
+        .fm-table tr:hover { background: var(--bg-input); }
+        
+        .file-link { text-decoration: none; color: var(--link-color); display: flex; align-items: center; gap: 5px; }
+        .file-link.dir { color: var(--link-dir-color); font-weight: bold; }
+        
+        .actions { display: flex; gap: 5px; justify-content: flex-end; align-items: center; width: 100%; }
+        .btn-action { text-decoration: none; padding: 6px 0; width: 55px; text-align: center; border-radius: 3px; font-size: 11px; color: #fff; cursor: pointer; border: none; font-family: sans-serif; font-weight: bold; display: inline-block; box-sizing: border-box; }
+        .btn-del { background: #dc3545; } .btn-dl { background: #007bff; } .btn-ren { background: #17a2b8; } 
+        .btn-zip { background: #6f42c1; } .btn-unzip { background: #fd7e14; } .btn-hash { background: #ff9233; }
+        
+        .editor-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        #editor-text { 
+            flex: 1;
+            width: 100%; 
+            background: var(--bg-log-box); 
+            color: var(--text-main); 
+            font-family: monospace; 
+            padding: 10px; 
+            border: 1px solid var(--border-color); 
+            border-radius: 4px; 
+            box-sizing: border-box; 
+            line-height: 1.5;
+            resize: none;
+        }
+        .btn-save { background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px; flex-shrink: 0; }
+        .input-text-style { background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main); padding: 6px 10px; border-radius: 4px; font-size: 13px; }
+        .btn-tool { background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; display: flex; align-items: center; gap: 5px; }
+
+        .custom-modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 2000; display: none; }
+        .custom-modal-box { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; padding: 20px; width: 100%; max-width: 480px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 15px; }
+        .custom-modal-title { font-size: 16px; font-weight: bold; color: #4caf50; border-bottom: 1px solid var(--border-light); padding-bottom: 8px; margin: 0; }
+        .custom-modal-body { font-size: 14px; color: var(--text-main); display: flex; flex-direction: column; gap: 10px; }
+        .custom-modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 5px; }
+        .modal-log-area { background: #000; border: 1px solid #333; color: #00ff00; font-family: monospace; font-size: 12px; padding: 10px; max-height: 150px; overflow-y: auto; border-radius: 4px; white-space: pre-wrap; word-break: break-all; }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <h2>🧱 VnMine Panel Ultimate</h2>
+        <div class="nav-right-controls">
+            <div class="theme-selector">
+                <button class="theme-btn" id="theme-light" onclick="changeThemeMode('light')">☀️ Sáng</button>
+                <button class="theme-btn" id="theme-dark" onclick="changeThemeMode('dark')">🌙 Tối</button>
+                <button class="theme-btn" id="theme-auto" onclick="changeThemeMode('auto')">⚙️ Auto</button>
+            </div>
+
+            <div class="stats-bar">
+                <span>IP Host: <strong style="color:#1ce1ff;">{{ stats.ip }}</strong></span>
+                <span>Vị trí: <strong style="color:#ffca28;">{{ stats.location }}</strong></span>
+                <span>Browser Ping: <strong id="ping-display" style="color:#e11cff;">-- ms</strong></span>
+                <span>Server MC: <strong style="color: {{ 'green' if stats.status == 'RUNNING' else 'red' }};">{{ stats.status }}</strong></span>
+                <span>MC RAM: <strong style="color:#28a745;">{{ stats.ram_used }} MB</strong></span>
+                <span>MC CPU: <strong style="color:#007bff;">{{ stats.cpu }} %</strong></span>
+                <a href="/logout" class="logout-btn">🔒 Đăng xuất</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <a href="/" class="tab-btn {{ 'active' if active_tab == 'console' else '' }}">💻 Live Console</a>
+        <a href="/files" class="tab-btn {{ 'active' if active_tab == 'files' else '' }}">📂 File Manager v4</a>
+    </div>
+
+    <div class="container">
+        {% if active_tab == 'console' %}
+        <div class="console-layout">
+            <div class="console-filter-bar">
+                <div class="console-filter-tabs">
+                    <button class="filter-btn active" onclick="setFilter('all', this)">TẤT CẢ LOGS</button>
+                    <button class="filter-btn" onclick="setFilter('system', this)">⚙️ HỆ THỐNG (INFO)</button>
+                    <button class="filter-btn" onclick="setFilter('command', this)">💻 LỆNH & ĐIỀU KHIỂN</button>
+                    <button class="filter-btn" onclick="setFilter('chat', this)">💬 CHAT GAME</button>
+                    <button class="filter-btn" onclick="setFilter('plugins', this)">📦 PLUGINS</button>
+                    <button class="filter-btn" onclick="setFilter('error', this)">⚠️ LỖI/WARN</button>
+                    <button class="filter-btn" onclick="setFilter('playit', this)">🌐 PLAYIT</button>
+                    <button class="filter-btn" onclick="setFilter('monitor', this)">📊 GIÁM SÁT</button>
+                </div>
+                <button class="btn-copy-logs" onclick="copyAllLogs()">📋 Copy Toàn Bộ Logs</button>
+            </div>
+            
+            <div class="console-main-frame">
+                <div class="console-box">
+                    <div id="logs-output">Đang đồng bộ luồng dữ liệu dữ liệu log...</div>
+                    <div class="cmd-container">
+                        <div id="autocomplete-box"></div>
+                        <div class="cmd-input-group">
+                            <input type="text" id="cmd-input" placeholder="Nhập lệnh hoặc gõ văn bản tự do để chat vào game..." autocomplete="off">
+                            <button id="btn-send" onclick="sendCmd()">Gửi Lệnh</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="quick-panel">
+                    <h3>⚡ Điều Khiển Nhanh</h3>
+                    
+                    <div class="cmd-group">
+                        <div class="cmd-group-title">Hệ thống & Hiệu năng</div>
+                        <button class="btn-quick" onclick="sendQuickCmd('tps')">📊 Kiểm tra hiệu năng (/tps)</button>
+                        <button class="btn-quick" onclick="sendQuickCmd('version')">ℹ️ Phiên bản Server (/version)</button>
+                        <button class="btn-quick" onclick="sendQuickCmd('save-all')">💾 Lưu dữ liệu nhanh (/save-all)</button>
+                        <button class="btn-quick" onclick="sendQuickCmd('reload confirm')" style="color: #ffca28;">🔄 Nạp lại cấu hình (/reload)</button>
+                    </div>
+
+                    <div class="cmd-group">
+                        <div class="cmd-group-title">Môi trường thế giới</div>
+                        <button class="btn-quick" onclick="sendQuickCmd('time set day')">☀️ Đặt thời gian: Ban Ngày</button>
+                        <button class="btn-quick" onclick="sendQuickCmd('time set night')">🌙 Đặt thời gian: Ban Đêm</button>
+                        <button class="btn-quick" onclick="sendQuickCmd('weather clear')">☀️ Thời tiết: Trời trong xanh</button>
+                        <button class="btn-quick" onclick="sendQuickCmd('weather storm')">⛈️ Thời tiết: Mưa giông bão</button>
+                    </div>
+
+                    <div class="cmd-group">
+                        <div class="cmd-group-title">Thành viên & Tiện ích</div>
+                        <button class="btn-quick" onclick="sendQuickCmd('list')">👥 Danh sách người chơi (/list)</button>
+                        <button class="btn-quick" onclick="sendQuickCmd('plugins')">📦 Kiểm tra Plugins (/plugins)</button>
+                        <button class="btn-quick" onclick="sendQuickCmd('seed')">🌱 Xem mã Seed thế giới (/seed)</button>
+                        <button class="btn-quick" onclick="sendQuickCmd('whitelist list')">📜 Danh sách Whitelist</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            let currentFilter = 'all';
+            const commandList = [
+                "stop", "reload", "plugins", "version", "seed", "whitelist on", "whitelist off", "whitelist add ", "whitelist list",
+                "op ", "deop ", "gamemode creative ", "gamemode survival ", "gamemode adventure ", "gamemode spectator ",
+                "time set day", "time set night", "weather clear", "weather rain", "difficulty peaceful", "difficulty easy", "difficulty hard",
+                "mv list", "mv info", "mv tp ", "tps", "save-all"
+            ];
+            let selectedSuggestIndex = -1;
+
+            function setFilter(filterType, btnElem) {
+                currentFilter = filterType;
+                document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+                btnElem.classList.add('active');
+                renderLogs();
+            }
+
+            let rawLogsData = [];
+            function fetchLogs() {
+                fetch('/api/logs')
+                .then(res => res.json())
+                .then(data => {
+                    rawLogsData = data.logs;
+                    renderLogs();
+                });
+            }
+
+            function renderLogs() {
+                const el = document.getElementById('logs-output');
+                const isAtBottom = el.scrollHeight - el.clientHeight <= el.scrollTop + 60;
+                
+                let htmlContent = "";
+                rawLogsData.forEach(item => {
+                    if (currentFilter === 'all' || item.type === currentFilter) {
+                        htmlContent += `<div class="log-item log-${item.type}">[${item.time}] ${item.text}</div>`;
+                    }
+                });
+                
+                el.innerHTML = htmlContent || "<div style='color: var(--text-dark-gray);'>Không có bản ghi nào thuộc tab này...</div>";
+                if (isAtBottom) el.scrollTop = el.scrollHeight;
+            }
+
+            function sendCmd() {
+                const input = document.getElementById('cmd-input');
+                const val = input.value.trim();
+                if(!val) return;
+                executeCommandApi(val);
+                input.value = '';
+                closeAutocomplete();
+            }
+
+            function sendQuickCmd(cmdStr) {
+                executeCommandApi(cmdStr);
+            }
+
+            function executeCommandApi(cmdStr) {
+                fetch('/api/command', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({command: cmdStr})
+                }).then(res => res.json()).then(data => {
+                    if(data.status === 'error') alert(data.message);
+                    fetchLogs();
+                });
+            }
+
+            function copyAllLogs() {
+                if (rawLogsData.length === 0) {
+                    alert("Không có dữ liệu log nào để sao chép!");
+                    return;
+                }
+                let textToCopy = rawLogsData.map(item => `[${item.time}] [${item.type.toUpperCase()}] ${item.text}`).join('\n');
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    alert("🎉 Đã copy toàn bộ logs vào bộ nhớ tạm!");
+                }).catch(err => {
+                    alert("Lỗi khi sao chép logs: " + err);
+                });
+            }
+
+            const inputField = document.getElementById('cmd-input');
+            const suggestBox = document.getElementById('autocomplete-box');
+
+            inputField.addEventListener('input', function() {
+                let text = this.value;
+                if (text.startsWith('/')) text = text.substring(1);
+                if (!text) {
+                    closeAutocomplete();
+                    return;
+                }
+
+                const filtered = commandList.filter(c => c.startsWith(text.toLowerCase()));
+                if (filtered.length > 0) {
+                    suggestBox.innerHTML = "";
+                    filtered.forEach((cmd, idx) => {
+                        const div = document.createElement('div');
+                        div.className = "suggest-item";
+                        div.innerText = (inputField.value.startsWith('/') ? '/' : '') + cmd;
+                        div.addEventListener('click', function() {
+                            inputField.value = div.innerText;
+                            inputField.focus();
+                            closeAutocomplete();
+                        });
+                        suggestBox.appendChild(div);
+                    });
+                    suggestBox.style.display = "block";
+                } else {
+                    closeAutocomplete();
+                }
+                selectedSuggestIndex = -1;
+            });
+
+            inputField.addEventListener('keydown', function(e) {
+                const items = suggestBox.querySelectorAll('.suggest-item');
+                if (suggestBox.style.display === "block" && items.length > 0) {
+                    if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        selectedSuggestIndex = (selectedSuggestIndex + 1) % items.length;
+                        updateSelection(items);
+                    } else if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        selectedSuggestIndex = (selectedSuggestIndex - 1 + items.length) % items.length;
+                        updateSelection(items);
+                    } else if (e.key === "Enter" && selectedSuggestIndex > -1) {
+                        e.preventDefault();
+                        items[selectedSuggestIndex].click();
+                    } else if (e.key === "Tab" || e.key === "ArrowRight") {
+                        e.preventDefault();
+                        if (selectedSuggestIndex === -1) selectedSuggestIndex = 0;
+                        inputField.value = items[selectedSuggestIndex].innerText;
+                        closeAutocomplete();
+                    }
+                } else if (e.key === "Enter") {
+                    sendCmd();
+                }
+            });
+
+            function updateSelection(items) {
+                items.forEach((item, idx) => {
+                    if (idx === selectedSuggestIndex) {
+                        item.classList.add('selected');
+                        item.scrollIntoView({ block: 'nearest' });
+                    } else {
+                        item.classList.remove('selected');
+                    }
+                });
+            }
+
+            function closeAutocomplete() {
+                suggestBox.style.display = "none";
+            }
+
+            document.addEventListener('click', function(e) {
+                if (e.target !== inputField) closeAutocomplete();
+            });
+            setInterval(fetchLogs, 1500);
+            fetchLogs();
+        </script>
+        {% endif %}
+
+        {% if active_tab == 'files' %}
+        <div class="fm-layout">
+            <div class="card">
+                <h3>📁 Explorer: /data/{{ subpath }}</h3>
+                
+                <div class="fm-toolbar">
+                    <div class="toolbar-left">
+                        <button class="btn-tool" onclick="openCreateFolderModal()">➕ Thư mục</button>
+                        <input type="text" id="download-url" class="input-text-style" style="width: 220px;" placeholder="Dán link tải file / GitHub...">
+                        <input type="password" id="github-token" class="input-text-style" style="width: 120px;" placeholder="GitHub Token (Nếu có)">
+                        <button class="btn-tool" style="background:#17a2b8;" onclick="downloadFromUrl()">🌐 Tải từ Link</button>
+                    </div>
+
+                    <div class="toolbar-right">
+                        <form action="/api/fm/upload" method="POST" enctype="multipart/form-data" id="upload-form" style="display:flex; align-items:center; gap:5px;">
+                            <input type="hidden" name="subpath" value="{{ subpath }}">
+                            <input type="file" name="file" id="file-uploader-input" onchange="document.getElementById('upload-form').submit();" style="display: none;">
+                            <button type="button" class="btn-tool" style="background:#007bff; padding: 6px 14px;" onclick="document.getElementById('file-uploader-input').click();" title="Upload File">📤</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="table-wrapper">
+                    <table class="fm-table">
+                        <thead>
+                            <tr>
+                                <th>Tên Tệp/Thư Mục</th>
+                                <th style="width: 90px;">Kích Thước</th>
+                                <th style="width: 260px; text-align: right;">Hành Động</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>
+                                    {% if item.is_dir and item.is_parent_link %}
+                                        <a href="{{ item.path }}" class="file-link dir">↩️ {{ item.name }}</a>
+                                    {% elif item.is_dir %}
+                                        <a href="{{ item.path }}" class="file-link dir">📁 {{ item.name }}</a>
+                                    {% else %}
+                                        <a href="{{ item.path }}" class="file-link">📄 {{ item.name }}</a>
+                                    {% endif %}
+                                </td>
+                                <td><span style="color:var(--text-muted);">{{ item.size }}</span></td>
+                                <td style="text-align: right;">
+                                    <div class="actions">
+                                        {% if not item.is_parent_link %}
+                                            {% if item.is_dir %}
+                                                <button class="btn-action btn-zip" onclick="backupFolder('{{ item.raw_path }}', '{{ item.name }}')">Backup</button>
+                                            {% else %}
+                                                <button class="btn-action btn-hash" onclick="openChecksumModal('{{ item.raw_path }}', '{{ item.name }}')">SHA</button>
+                                                <a href="/api/fm/download/{{ item.raw_path }}" class="btn-action btn-dl" target="_blank">Tải</a>
+                                                {% if item.name.endswith('.zip') %}
+                                                    <button class="btn-action btn-unzip" onclick="unzipFile('{{ item.raw_path }}')">Nén</button>
+                                                {% endif %}
+                                            {% endif %}
+                                            <button class="btn-action btn-ren" onclick="openRenameModal('{{ item.raw_path }}', '{{ item.name }}')">Sửa</button>
+                                            <button class="btn-action btn-del" onclick="openDeleteModal('{{ item.raw_path }}', {{ 'true' if item.is_dir else 'false' }})">Xóa</button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>📝 Biên Tập Văn Bản</h3>
+                {% if file_content is not none %}
+                    <div class="editor-wrapper">
+                        <p style="margin: 0 0 10px 0; font-size:13px; color:var(--text-muted);">Đang xem file: <strong style="color: var(--link-color);">/data/{{ edit_file_path }}</strong></p>
+                        <form action="/api/fm/save" method="POST" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+                            <input type="hidden" name="subpath" value="{{ edit_file_path }}">
+                            <textarea id="editor-text" name="content">{{ file_content }}</textarea>
+                            <button type="submit" class="btn-save">💾 Lưu thay đổi</button>
+                        </form>
+                    </div>
+                {% else %}
+                    <p style="color: var(--text-dark-gray); text-align: center; padding-top: 150px; font-size:14px;">Bấm trực tiếp vào tên một file cấu hình hoặc văn bản để biên tập dữ liệu trực tuyến.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div id="inlineCustomModal" class="custom-modal-overlay" onclick="closeInlineModal(event)">
+            <div class="custom-modal-box" id="modal-box-content"></div>
+        </div>
+        
+        <script>
+            function showInlineModal(htmlContent) {
+                const modal = document.getElementById('inlineCustomModal');
+                document.getElementById('modal-box-content').innerHTML = htmlContent;
+                modal.style.display = 'flex';
+            }
+
+            function closeInlineModal(e) {
+                if (e && e.target.id !== 'inlineCustomModal') return;
+                document.getElementById('inlineCustomModal').style.display = 'none';
+            }
+            
+            function forceCloseModal() {
+                document.getElementById('inlineCustomModal').style.display = 'none';
+            }
+
+            function openCreateFolderModal() {
+                const html = `
+                    <h4 class="custom-modal-title">➕ Tạo Thư Mục Mới</h4>
+                    <div class="custom-modal-body">
+                        <label>Nhập tên thư mục cần tạo:</label>
+                        <input type="text" id="modal-folder-name" class="input-text-style" placeholder="Tên thư mục..." autofocus>
+                    </div>
+                    <div class="custom-modal-footer">
+                        <button class="btn-tool" style="background:#6c757d;" onclick="forceCloseModal()">Hủy</button>
+                        <button class="btn-tool" onclick="submitCreateFolder()">Xác nhận</button>
+                    </div>
+                `;
+                showInlineModal(html);
+            }
+
+            function submitCreateFolder() {
+                const name = document.getElementById('modal-folder-name').value.trim();
+                if(!name) return alert("Vui lòng nhập tên thư mục!");
+                
+                fetch('/api/fm/mkdir', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ subpath: '{{ subpath }}', folder_name: name })
+                }).then(res => res.json()).then(data => {
+                    if(data.status === 'success') location.reload();
+                    else showStatusModal("Lỗi hệ thống", data.message, "error");
+                });
+            }
+
+            function openRenameModal(oldPath, oldName) {
+                const html = `
+                    <h4 class="custom-modal-title">✏️ Đổi Tên Mục Dữ Liệu</h4>
+                    <div class="custom-modal-body">
+                        <label>Nhập tên mới:</label>
+                        <input type="text" id="modal-rename-name" class="input-text-style" value="${oldName}" autofocus>
+                    </div>
+                    <div class="custom-modal-footer">
+                        <button class="btn-tool" style="background:#6c757d;" onclick="forceCloseModal()">Hủy</button>
+                        <button class="btn-tool" onclick="submitRenameItem('${oldPath}')">Thay đổi</button>
+                    </div>
+                `;
+                showInlineModal(html);
+            }
+
+            function submitRenameItem(oldPath) {
+                const newName = document.getElementById('modal-rename-name').value.trim();
+                if(!newName) return;
+                fetch('/api/fm/rename', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ old_path: oldPath, new_name: newName })
+                }).then(res => res.json()).then(data => {
+                    if(data.status === 'success') location.href = "/files/{{ subpath }}";
+                    else showStatusModal("Lỗi đổi tên", data.message, "error");
+                });
+            }
+
+            function openDeleteModal(path, isDir) {
+                const msg = isDir ? "CẢNH BÁO: Hành động này sẽ xóa sạch thư mục?" : "Bạn có chắc chắn muốn xóa tệp tin này?";
+                const html = `
+                    <h4 class="custom-modal-title" style="color:#dc3545;">⚠️ Xác Nhận Xóa</h4>
+                    <div class="custom-modal-body">
+                        <p>${msg}</p>
+                        <p style="font-size:12px; color:var(--text-muted); font-family:monospace;">Mục: ${path}</p>
+                    </div>
+                    <div class="custom-modal-footer">
+                        <button class="btn-tool" style="background:#6c757d;" onclick="forceCloseModal()">Hủy</button>
+                        <button class="btn-tool" style="background:#dc3545;" onclick="submitDeleteItem('${path}')">Xóa ngay</button>
+                    </div>
+                `;
+                showInlineModal(html);
+            }
+
+            function submitDeleteItem(path) {
+                fetch('/api/fm/delete', { 
+                    method: 'DELETE',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ filepath: path })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') location.reload();
+                    else showStatusModal("Lỗi xóa", data.message, "error");
+                });
+            }
+
+            function openChecksumModal(path, name) {
+                const html = `
+                    <h4 class="custom-modal-title">🔍 Kiểm Tra Checksum SHA-256</h4>
+                    <div class="custom-modal-body">
+                        <p>Kiểm tra tính toàn vẹn của file: <strong>${name}</strong></p>
+                        <label>Dán mã SHA-256 đối chiếu chuẩn:</label>
+                        <input type="text" id="modal-checksum-input" class="input-text-style" placeholder="Nhập chuỗi băm 64 ký tự..." autofocus>
+                    </div>
+                    <div class="custom-modal-footer">
+                        <button class="btn-tool" style="background:#6c757d;" onclick="forceCloseModal()">Hủy</button>
+                        <button class="btn-tool" onclick="submitVerifyChecksum('${path}')">Kiểm tra</button>
+                    </div>
+                `;
+                showInlineModal(html);
+            }
+
+            function submitVerifyChecksum(path) {
+                const expectedChecksum = document.getElementById('modal-checksum-input').value.trim();
+                if (!expectedChecksum) return;
+
+                showInlineModal(`
+                    <h4 class="custom-modal-title">⚙️ Đang Tính Toán Checksum</h4>
+                    <div class="custom-modal-body">
+                        <p>Hệ thống đang quét cấu trúc dữ liệu tệp tin và đối chiếu mã băm...</p>
+                    </div>
+                `);
+
+                fetch('/api/fm/checksum', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ filepath: path, expected_checksum: expectedChecksum.toLowerCase() })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    let colorTitle = data.status === 'success' ? '#28a745' : '#dc3545';
+                    let prefix = data.status === 'success' ? '✅' : '❌';
+                    const resHtml = `
+                        <h4 class="custom-modal-title" style="color:${colorTitle};">${prefix} Kết Quả Đối Chiếu</h4>
+                        <div class="custom-modal-body">
+                            <p><strong>${data.message}</strong></p>
+                            <p style="font-size:12px; margin-bottom:5px;">Mã SHA-256 thực tế trên đĩa:</p>
+                            <div class="modal-log-area" style="color:#00ff00;">${data.calculated}</div>
+                        </div>
+                        <div class="custom-modal-footer">
+                            <button class="btn-tool" onclick="forceCloseModal()">Đóng</button>
+                        </div>
+                    `;
+                    showInlineModal(resHtml);
+                })
+                .catch(err => showStatusModal("Lỗi", err, "error"));
+            }
+
+            function showStatusModal(title, text, type="success") {
+                let titleColor = type === 'success' ? '#28a745' : '#dc3545';
+                const html = `
+                    <h4 class="custom-modal-title" style="color:${titleColor};">${title}</h4>
+                    <div class="custom-modal-body">
+                        <p>${text}</p>
+                    </div>
+                    <div class="custom-modal-footer">
+                        <button class="btn-tool" onclick="forceCloseModal()">Đóng</button>
+                    </div>
+                `;
+                showInlineModal(html);
+            }
+
+            function downloadFromUrl() {
+                const urlInput = document.getElementById('download-url');
+                const tokenInput = document.getElementById('github-token');
+                const urlStr = urlInput.value.trim();
+                const tokenStr = tokenInput.value.trim();
+                if (!urlStr) return;
+
+                let logTexts = "Đang kết nối tới máy chủ tải file...\n";
+                showInlineModal(`
+                    <h4 class="custom-modal-title">🌐 Tiến Trình Tải File Trực Tuyến</h4>
+                    <div class="custom-modal-body">
+                        <div class="modal-log-area" id="modal-download-logs">${logTexts}</div>
+                    </div>
+                    <div class="custom-modal-footer" id="modal-download-footer">
+                        <button class="btn-tool" style="background:#6c757d;" disabled>Đang chạy...</button>
+                    </div>
+                `);
+
+                const logBox = document.getElementById('modal-download-logs');
+                
+                setTimeout(() => {
+                    logTexts += "Đang lấy thông tin kích thước...\n";
+                    logBox.innerText = logTexts;
+                }, 800);
+
+                fetch('/api/fm/download-from-url', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ subpath: '{{ subpath }}', url: urlStr, token: tokenStr })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        logTexts += `Tải hoàn tất thành công!\n`;
+                        logBox.innerText = logTexts;
+
+                        let isZipFile = urlStr.split('?')[0].endsWith('.zip') && !data.message.includes('đã giải nén');
+
+                        if (isZipFile) {
+                            logTexts += `\nPhát hiện tệp nén .ZIP! Bạn có muốn giải nén tự động không?\n`;
+                            logBox.innerText = logTexts;
+                            const cleanUrlName = urlStr.split('?')[0].split('/').pop();
+                            const fileRawPath = ('{{ subpath }}' ? '{{ subpath }}/' : '') + cleanUrlName;
+
+                            document.getElementById('modal-download-footer').innerHTML = `
+                                <button class="btn-tool" style="background:#fd7e14;" onclick="triggerInlineUnzip('${fileRawPath}')">🔓 Giải nén luôn</button>
+                                <button class="btn-tool" style="background:#28a745;" onclick="location.reload()">Bỏ qua & Đóng</button>
+                            `;
+                        } else {
+                            document.getElementById('modal-download-footer').innerHTML = `
+                                <button class="btn-tool" onclick="location.reload()">ĐỒNG Ý & ĐÓNG</button>
+                            `;
+                        }
+                    } else {
+                        logTexts += `❌ THẤT BẠI: ${data.message}\n`;
+                        logBox.innerText = logTexts;
+                        document.getElementById('modal-download-footer').innerHTML = `
+                            <button class="btn-tool" style="background:#dc3545;" onclick="forceCloseModal()">Đóng</button>
+                        `;
+                    }
+                })
+                .catch(err => {
+                    logTexts += `❌ LỖI KẾT NỐI: ${err}\n`;
+                    logBox.innerText = logTexts;
+                    document.getElementById('modal-download-footer').innerHTML = `
+                        <button class="btn-tool" style="background:#dc3545;" onclick="forceCloseModal()">Đóng</button>
+                    `;
+                });
+            }
+
+            function triggerInlineUnzip(path) {
+                const logBox = document.getElementById('modal-download-logs');
+                logBox.innerText = logBox.innerText + "\nĐang tiến hành giải nén...\n";
+                
+                fetch('/api/fm/unzip', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ filepath: path })
+                }).then(res => res.json()).then(data => {
+                    if(data.status === 'success') {
+                        logBox.innerText = logBox.innerText + "Đã giải nén toàn bộ tệp tin thành công!\n";
+                    } else {
+                        logBox.innerText = logBox.innerText + `Lỗi giải nén: ${data.message}\n`;
+                    }
+                    document.getElementById('modal-download-footer').innerHTML = `
+                        <button class="btn-tool" onclick="location.reload()">ĐÓNG</button>
+                    `;
+                });
+            }
+
+            function backupFolder(dirPath, folderName) {
+                showInlineModal(`
+                    <h4 class="custom-modal-title">📦 Tiến Trình Backup</h4>
+                    <div class="custom-modal-body">
+                        <p>Hệ thống đang tiến hành nén thư mục <strong>${folderName}</strong>...</p>
+                    </div>
+                `);
+                fetch('/api/fm/backup', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ folder_path: dirPath, folder_name: folderName })
+                }).then(res => res.json()).then(data => {
+                    if(data.status === 'success') {
+                        showStatusModal("Thành công", "Đã tạo bản sao lưu ZIP thành công!", "success");
+                        setTimeout(() => location.reload(), 1200);
+                    } else showStatusModal("Lỗi sao lưu", data.message, "error");
+                });
+            }
+
+            function unzipFile(path) {
+                showInlineModal(`
+                    <h4 class="custom-modal-title">🔓 Tiến Trình Giải Nén</h4>
+                    <div class="custom-modal-body">
+                        <p>Đang tiến hành giải nén tệp tin...</p>
+                    </div>
+                `);
+                fetch('/api/fm/unzip', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ filepath: path })
+                }).then(res => res.json()).then(data => {
+                    if(data.status === 'success') {
+                        showStatusModal("Thành công", "Đã rã nén toàn bộ gói dữ liệu!", "success");
+                        setTimeout(() => location.reload(), 1200);
+                    } else showStatusModal("Lỗi giải nén", data.message, "error");
+                });
+            }
+        </script>
+        {% endif %}
+    </div>
+
+    <script>
+        function applyThemeEngine() {
+            const mode = localStorage.getItem('panel-theme-mode') || 'dark';
+            document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
+            const targetBtn = document.getElementById('theme-' + mode);
+            if(targetBtn) targetBtn.classList.add('active');
+
+            if (mode === 'auto') {
+                const currentHour = new Date().getHours();
+                if (currentHour >= 6 && currentHour < 18) {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                } else {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                }
+            } else {
+                document.documentElement.setAttribute('data-theme', mode);
+            }
+            if (typeof renderLogs === "function") renderLogs();
+        }
+
+        function changeThemeMode(newMode) {
+            localStorage.setItem('panel-theme-mode', newMode);
+            applyThemeEngine();
+        }
+
+        applyThemeEngine();
+        setInterval(() => {
+            if(localStorage.getItem('panel-theme-mode') === 'auto') applyThemeEngine();
+        }, 60000);
+
+        function measureBrowserPing() {
+            const startTime = performance.now();
+            fetch('/api/ping')
+                .then(res => res.json())
+                .then(data => {
+                    const endTime = performance.now();
+                    const pingTime = Math.round(endTime - startTime);
+                    const pingElem = document.getElementById('ping-display');
+                    if (pingElem) {
+                        pingElem.innerText = pingTime + " ms";
+                        if (pingTime < 80) pingElem.style.color = "#28a745";
+                        else if (pingTime < 200) pingElem.style.color = "#ffca28";
+                        else pingElem.style.color = "#dc3545";
+                    }
+                })
+                .catch(err => {
+                    const pingElem = document.getElementById('ping-display');
+                    if (pingElem) {
+                        pingElem.innerText = "Lỗi";
+                        pingElem.style.color = "#dc3545";
+                    }
+                });
+        }
+        measureBrowserPing();
+        setInterval(measureBrowserPing, 5000);
+    </script>
+</body>
+</html>
