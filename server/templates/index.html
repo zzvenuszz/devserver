@@ -93,7 +93,7 @@
         .stats-bar span { background: var(--bg-card); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color); color: var(--text-main); }
         .stats-bar .status-green { color: #28a745 !important; font-weight: bold; }
         .stats-bar .status-red { color: #dc3545 !important; font-weight: bold; }
-        .logout-btn { background: #dc3545; color: white; text-decoration: none; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; }
+        .logout-btn { background: #dc3545; color: white; text-decoration: none; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; min-height: 26px; }
         
         .theme-selector {
             display: flex;
@@ -543,7 +543,7 @@
             border: 1px solid var(--border-color);
             border-radius: 6px;
             padding: 12px;
-            max-height: 200px;
+            max-height: 400px;
             overflow-y: auto;
         }
         .monitor-log-section h3 {
@@ -692,7 +692,7 @@
 </head>
 <body>
     <div class="navbar">
-        <h2>🧱 VnMine Panel Ultimate</h2>
+        <h2>🧱 VnMine Panel</h2>
         <div class="nav-right-controls">
             <div class="theme-selector">
                 <button class="theme-btn" id="theme-light" onclick="changeThemeMode('light')">☀️ Sáng</button>
@@ -705,8 +705,6 @@
                 <span>Vị trí: <strong style="color:#ffca28;">{{ stats.location }}</strong></span>
                 <span>Browser Ping: <strong id="ping-display" style="color:#e11cff;">-- ms</strong></span>
                 <span>Server MC: <strong class="status-{{ 'green' if stats.status == 'RUNNING' else 'red' }}">{{ stats.status }}</strong></span>
-                <span>MC RAM: <strong style="color:#28a745;">{{ stats.ram_used }} MB</strong></span>
-                <span>MC CPU: <strong style="color:#007bff;">{{ stats.cpu }} %</strong></span>
                 <a href="/logout" class="logout-btn" title="Đăng xuất">🔒</a>
             </div>
         </div>
