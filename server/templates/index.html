@@ -1027,21 +1027,17 @@
                                 <td style="text-align: right;">
                                     <div class="actions">
                                         {% if not item.is_parent_link %}
-                                            {% if item.is_absolute_mode %}
-                                                <span style="color:var(--text-dark-gray); font-size:11px;"></span>
-                                            {% elif item.is_dir %}
-                                                <button class="btn-action btn-zip" onclick="backupFolder('{{ item.raw_path }}', '{{ item.name }}')">Backup</button>
+                                            {% if item.is_dir %}
+                                                <button class="btn-action btn-zip" onclick="backupFolder('{{ item.raw_path }}', '{{ item.name }}', '{{ current_path }}')">Backup</button>
                                             {% else %}
-                                                <button class="btn-action btn-hash" onclick="openChecksumModal('{{ item.raw_path }}', '{{ item.name }}')">SHA</button>
+                                                <button class="btn-action btn-hash" onclick="openChecksumModal('{{ item.raw_path }}', '{{ item.name }}', '{{ current_path }}')">SHA</button>
                                                 <a href="/api/fm/download/{{ item.raw_path }}" class="btn-action btn-dl" target="_blank">Tải</a>
                                                 {% if item.name.endswith('.zip') %}
-                                                    <button class="btn-action btn-unzip" onclick="unzipFile('{{ item.raw_path }}')">Nén</button>
+                                                    <button class="btn-action btn-unzip" onclick="unzipFile('{{ item.raw_path }}', '{{ current_path }}')">Nén</button>
                                                 {% endif %}
                                             {% endif %}
-                                            {% if not item.is_absolute_mode %}
-                                            <button class="btn-action btn-ren" onclick="openRenameModal('{{ item.raw_path }}', '{{ item.name }}')">Sửa</button>
-                                            <button class="btn-action btn-del" data-path="{{ item.raw_path|escape }}" data-is-dir="{{ 'true' if item.is_dir else 'false' }}" onclick="openDeleteModal(this.dataset.path, this.dataset.isDir === 'true')">Xóa</button>
-                                            {% endif %}
+                                            <button class="btn-action btn-ren" onclick="openRenameModal('{{ item.raw_path }}', '{{ item.name }}', '{{ current_path }}')">Sửa</button>
+                                            <button class="btn-action btn-del" data-path="{{ item.raw_path|escape }}" data-is-dir="{{ 'true' if item.is_dir else 'false' }}" onclick="openDeleteModal(this.dataset.path, this.dataset.isDir === 'true', '{{ current_path }}')">Xóa</button>
                                         {% endif %}
                                     </div>
                                 </td>
@@ -1150,7 +1146,7 @@
                 });
             }
 
-            function openRenameModal(oldPath, oldName) {
+            function openRenameModal(oldPath, oldName, basePath) {
                 const html = `
                     <h4 class="custom-modal-title">✏️ Đổi Tên Mục Dữ Liệu</h4>
                     <div class="custom-modal-body">
@@ -1165,20 +1161,20 @@
                 showInlineModal(html);
             }
 
-            function submitRenameItem(oldPath) {
+            function submitRenameItem(oldPath, basePath) {
                 const newName = document.getElementById('modal-rename-name').value.trim();
                 if(!newName) return;
                 fetch('/api/fm/rename', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ old_path: oldPath, new_name: newName })
+                    body: JSON.stringify({ old_path: oldPath, new_name: newName, base_path: basePath || '' })
                 }).then(res => res.json()).then(data => {
                     if(data.status === 'success') location.href = "/files/{{ subpath }}";
                     else showStatusModal("Lỗi đổi tên", data.message, "error");
                 });
             }
 
-            function openDeleteModal(path, isDir) {
+            function openDeleteModal(path, isDir, basePath) {
                 const msg = isDir ? "CẢNH BÁO: Hành động này sẽ xóa sạch thư mục?" : "Bạn có chắc chắn muốn xóa tệp tin này?";
                 const html = `
                     <h4 class="custom-modal-title" style="color:#dc3545;">⚠️ Xác Nhận Xóa</h4>
@@ -1194,11 +1190,11 @@
                 showInlineModal(html);
             }
 
-            function submitDeleteItem(path) {
+            function submitDeleteItem(path, basePath) {
                 fetch('/api/fm/delete', { 
                     method: 'DELETE',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ filepath: path })
+                    body: JSON.stringify({ filepath: path, base_path: basePath || '' })
                 })
                 .then(res => res.json())
                 .then(data => {
@@ -1207,7 +1203,7 @@
                 });
             }
 
-            function openChecksumModal(path, name) {
+            function openChecksumModal(path, name, basePath) {
                 const html = `
                     <h4 class="custom-modal-title">🔍 Kiểm Tra Checksum SHA-256</h4>
                     <div class="custom-modal-body">
@@ -1223,7 +1219,7 @@
                 showInlineModal(html);
             }
 
-            function submitVerifyChecksum(path) {
+            function submitVerifyChecksum(path, basePath) {
                 const expectedChecksum = document.getElementById('modal-checksum-input').value.trim();
                 if (!expectedChecksum) return;
 
@@ -1237,7 +1233,7 @@
                 fetch('/api/fm/checksum', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ filepath: path, expected_checksum: expectedChecksum.toLowerCase() })
+                    body: JSON.stringify({ filepath: path, expected_checksum: expectedChecksum.toLowerCase(), base_path: basePath || '' })
                 })
                 .then(res => res.json())
                 .then(data => {
@@ -1350,7 +1346,7 @@
                 fetch('/api/fm/unzip', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ filepath: path })
+                    body: JSON.stringify({ filepath: path, base_path: basePath || '' })
                 }).then(res => res.json()).then(data => {
                     if(data.status === 'success') {
                         logBox.innerText = logBox.innerText + "Đã giải nén toàn bộ tệp tin thành công!\n";
@@ -1363,7 +1359,7 @@
                 });
             }
 
-            function backupFolder(dirPath, folderName) {
+            function backupFolder(dirPath, folderName, basePath) {
                 showInlineModal(`
                     <h4 class="custom-modal-title">📦 Tiến Trình Backup</h4>
                     <div class="custom-modal-body">
@@ -1373,7 +1369,7 @@
                 fetch('/api/fm/backup', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ folder_path: dirPath, folder_name: folderName })
+                    body: JSON.stringify({ folder_path: dirPath, folder_name: folderName, base_path: basePath || '' })
                 }).then(res => res.json()).then(data => {
                     if(data.status === 'success') {
                         showStatusModal("Thành công", "Đã tạo bản sao lưu ZIP thành công!", "success");
@@ -1382,7 +1378,7 @@
                 });
             }
 
-            function unzipFile(path) {
+            function unzipFile(path, basePath) {
                 showInlineModal(`
                     <h4 class="custom-modal-title">🔓 Tiến Trình Giải Nén</h4>
                     <div class="custom-modal-body">
@@ -1392,7 +1388,7 @@
                 fetch('/api/fm/unzip', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ filepath: path })
+                    body: JSON.stringify({ filepath: path, base_path: basePath || '' })
                 }).then(res => res.json()).then(data => {
                     if(data.status === 'success') {
                         showStatusModal("Thành công", "Đã rã nén toàn bộ gói dữ liệu!", "success");
@@ -1944,17 +1940,22 @@
                         red: 'TPS rất thấp. Server đang bị lag nghiêm trọng!'
                     },
                     mspt: {
-                        green: 'MSPT đang ở mức tốt. Server phản hồi nhanh.',
-                        yellow: 'MSPT tăng. Server phản hồi chậm hơn.',
-                        red: 'MSPT rất cao. Server phản hồi rất chậm!'
+                        green: 'MSPT dang o muc tot. Server phan hoi nhanh.',
+                        yellow: 'MSPT tang. Server phan hoi cham hon.',
+                        red: 'MSPT rat cao. Server phan hoi rat cham!',
+                    },
+                    cpu: {
+                        green: 'CPU dang hoat dong tot. He thong on dinh.',
+                        yellow: 'CPU tang cao. May chu co the bi qua tai.',
+                        red: 'CPU rat cao! He thong dang bi qua tai nghiem trong!'
                     },
                     ping: {
-                        green: 'Ping thấp. Kết nối mượt.',
-                        yellow: 'Ping ở mức trung bình. Kết nối có độ trễ.',
-                        red: 'Ping rất cao. Kết nối đang bị lag!'
+                        green: 'Ping thap. Ket noi muot.',
+                        yellow: 'Ping o muc trung binh. Ket noi co do tre.',
+                        red: 'Ping rat cao. Ket noi dang bi lag!'
                     }
                 };
-                return messages[metric]?.[status] || '';
+                try { return messages[metric][status]; } catch(e) { return status === "green" ? "He thong hoat dong tot." : status === "yellow" ? "Can theo doi." : "Can kiem tra ngay!"; }
             }
 
             function updateAlertLog(alerts) {

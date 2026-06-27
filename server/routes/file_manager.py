@@ -134,7 +134,11 @@ def fm_upload():
 @fm_bp.route("/api/fm/download/<path:filepath>")
 def fm_download(filepath):
     """Download file"""
-    full_path = os.path.join(BASE_DATA_DIR, filepath)
+    base_path = request.json.get("base_path", "").strip()
+    if base_path and os.path.isdir(base_path):
+        full_path = os.path.join(base_path, filepath)
+    else:
+        full_path = os.path.join(BASE_DATA_DIR, filepath)
     if not os.path.exists(full_path) or os.path.isdir(full_path):
         return "Tệp tin không tồn tại", 404
     
@@ -186,7 +190,8 @@ def fm_backup():
     folder_path = request.json.get("folder_path", "")
     folder_name = request.json.get("folder_name", "").strip()
     
-    zip_name = create_backup_zip(folder_path, folder_name)
+    base_path = request.json.get("base_path", "").strip()
+    zip_name = create_backup_zip(folder_path, folder_name, base_dir=base_path if base_path else None)
     
     if zip_name:
         return jsonify({"status": "success"})
@@ -199,7 +204,8 @@ def fm_unzip():
     """Giải nén file ZIP"""
     filepath = request.json.get("filepath", "")
     
-    success = unzip_file(filepath)
+    base_path = request.json.get("base_path", "").strip()
+    success = unzip_file(filepath, base_dir=base_path if base_path else None)
     
     if success:
         return jsonify({"status": "success"})
@@ -216,7 +222,11 @@ def fm_rename():
     if not old_path or not new_name:
         return jsonify({"status": "error", "message": "Thiếu dữ liệu"})
     
-    full_old_path = os.path.join(BASE_DATA_DIR, old_path)
+    base_path = request.json.get("base_path", "").strip()
+    if base_path and os.path.isdir(base_path):
+        full_old_path = os.path.join(base_path, old_path)
+    else:
+        full_old_path = os.path.join(BASE_DATA_DIR, old_path)
     full_new_path = os.path.join(os.path.dirname(full_old_path), new_name)
     
     try:
@@ -232,7 +242,11 @@ def fm_rename():
 def fm_delete():
     """Xóa file/thư mục"""
     filepath = request.json.get("filepath", "")
-    full_path = os.path.join(BASE_DATA_DIR, filepath)
+    base_path = request.json.get("base_path", "").strip()
+    if base_path and os.path.isdir(base_path):
+        full_path = os.path.join(base_path, filepath)
+    else:
+        full_path = os.path.join(BASE_DATA_DIR, filepath)
     
     try:
         if os.path.exists(full_path):

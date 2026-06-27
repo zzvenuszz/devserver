@@ -130,7 +130,7 @@ def calculate_sha256(filepath):
         return None
 
 
-def create_backup_zip(folder_path, folder_name):
+def create_backup_zip(folder_path, folder_name, base_dir=None):
     """
     Tạo file backup ZIP của thư mục
     
@@ -141,7 +141,10 @@ def create_backup_zip(folder_path, folder_name):
     Returns:
         str: Đường dẫn file zip đã tạo hoặc None nếu lỗi
     """
-    target_dir = os.path.join(BASE_DATA_DIR, folder_path)
+    if base_dir and os.path.isdir(base_dir):
+        target_dir = os.path.join(base_dir, folder_path)
+    else:
+        target_dir = os.path.join(BASE_DATA_DIR, folder_path)
     
     if not os.path.exists(target_dir) or not os.path.isdir(target_dir):
         return None
@@ -161,7 +164,7 @@ def create_backup_zip(folder_path, folder_name):
         return None
 
 
-def unzip_file(filepath):
+def unzip_file(filepath, base_dir=None):
     """
     Giải nén file ZIP
     
@@ -171,7 +174,10 @@ def unzip_file(filepath):
     Returns:
         bool: True nếu thành công, False nếu lỗi
     """
-    full_zip_path = os.path.join(BASE_DATA_DIR, filepath)
+    if base_dir and os.path.isdir(base_dir):
+        full_zip_path = os.path.join(base_dir, filepath)
+    else:
+        full_zip_path = os.path.join(BASE_DATA_DIR, filepath)
     
     if not os.path.exists(full_zip_path) or not os.path.isfile(full_zip_path):
         return False
