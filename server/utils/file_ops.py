@@ -184,6 +184,70 @@ def unzip_file(filepath):
         return False
 
 
+def list_directory_from(path):
+    """
+    Liệt kê nội dung thư mục từ absolute path (không dùng BASE_DATA_DIR)
+    
+    Args:
+        path: Đường dẫn tuyệt đối đến thư mục cần liệt kê
+        
+    Returns:
+        list: Danh sách các mục trong thư mục
+    """
+    if not os.path.exists(path) or not os.path.isdir(path):
+        return []
+    
+    try:
+        dir_items = os.listdir(path)
+    except Exception:
+        return []
+    
+    formatted_items = []
+    is_absolute_mode = True
+    
+    # Thêm link quay lại thư mục cha
+    parent = os.path.dirname(path)
+    if parent and parent != path:
+        formatted_items.append({
+            "name": ".. (Thư mục cha)",
+            "is_dir": True,
+            "is_parent_link": True,
+            "path": f"/files?path={parent}",
+            "raw_path": parent,
+            "size": "-",
+            "mtime": "-",
+            "is_absolute_mode": True
+        })
+    
+    # Thêm các item trong thư mục
+    for item in sorted(dir_items):
+        full_path = os.path.join(path, item)
+        is_directory = os.path.isdir(full_path)
+        
+        try:
+            stat_info = os.stat(full_path)
+            size_val = f"{stat_info.st_size // 1024} KB" if not is_directory else "Folder"
+            time_val = datetime.fromtimestamp(stat_info.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+        except Exception:
+            size_val = "Unknown"
+            time_val = "Unknown"
+        
+        file_link = f"/files?path={full_path}"
+        formatted_items.append({
+            "name": item,
+            "is_dir": is_directory,
+            "is_parent_link": False,
+            "path": file_link,
+            "raw_path": full_path,
+            "full_path": full_path,
+            "size": size_val,
+            "mtime": time_val,
+            "is_absolute_mode": True
+        })
+    
+    return formatted_items
+
+
 def is_zip_file(filepath):
     """
     Kiểm tra file có phải ZIP không

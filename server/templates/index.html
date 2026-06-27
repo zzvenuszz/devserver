@@ -716,6 +716,7 @@
         <a href="/" class="tab-btn {{ 'active' if active_tab == 'console' else '' }}">💻 Live Console</a>
         <a href="/files" class="tab-btn {{ 'active' if active_tab == 'files' else '' }}">📂 File Manager v4</a>
         <a href="/monitor" class="tab-btn {{ 'active' if active_tab == 'monitor' else '' }}">📊 Monitor Dashboard</a>
+        <a href="/terminal" class="tab-btn {{ 'active' if active_tab == 'terminal' else '' }}">🖥️ Terminal</a>
     </div>
 
     <div class="container">
@@ -974,7 +975,15 @@
         {% if active_tab == 'files' %}
         <div class="fm-layout">
             <div class="card">
-                <h3>📁 Explorer: /data/{{ subpath }}</h3>
+                <h3>📁 Explorer:
+                    <span id="fm-path-display" style="font-size:14px;cursor:pointer;" onclick="enablePathEdit()">📂 {{ current_path }}</span>
+                    <span id="fm-path-edit" style="display:none;">
+                        <input type="text" id="fm-path-input" value="{{ current_path }}" 
+                               style="width:400px;background:var(--bg-input);color:var(--text-main);border:1px solid var(--border-focus);border-radius:4px;padding:4px 8px;font-family:monospace;">
+                        <button onclick="navigateToPath()" style="background:var(--border-focus);color:#fff;border:none;border-radius:4px;padding:4px 12px;cursor:pointer;font-weight:bold;">➡️ Go</button>
+                        <button onclick="cancelPathEdit()" style="background:#6c757d;color:#fff;border:none;border-radius:4px;padding:4px 12px;cursor:pointer;">✖️</button>
+                    </span>
+                </h3>
                 
                 <div class="fm-toolbar">
                     <div class="toolbar-left">
@@ -1018,7 +1027,9 @@
                                 <td style="text-align: right;">
                                     <div class="actions">
                                         {% if not item.is_parent_link %}
-                                            {% if item.is_dir %}
+                                            {% if item.is_absolute_mode %}
+                                                <span style="color:var(--text-dark-gray); font-size:11px;"></span>
+                                            {% elif item.is_dir %}
                                                 <button class="btn-action btn-zip" onclick="backupFolder('{{ item.raw_path }}', '{{ item.name }}')">Backup</button>
                                             {% else %}
                                                 <button class="btn-action btn-hash" onclick="openChecksumModal('{{ item.raw_path }}', '{{ item.name }}')">SHA</button>
@@ -1027,8 +1038,10 @@
                                                     <button class="btn-action btn-unzip" onclick="unzipFile('{{ item.raw_path }}')">Nén</button>
                                                 {% endif %}
                                             {% endif %}
+                                            {% if not item.is_absolute_mode %}
                                             <button class="btn-action btn-ren" onclick="openRenameModal('{{ item.raw_path }}', '{{ item.name }}')">Sửa</button>
                                             <button class="btn-action btn-del" data-path="{{ item.raw_path|escape }}" data-is-dir="{{ 'true' if item.is_dir else 'false' }}" onclick="openDeleteModal(this.dataset.path, this.dataset.isDir === 'true')">Xóa</button>
+                                            {% endif %}
                                         {% endif %}
                                     </div>
                                 </td>
@@ -1043,7 +1056,7 @@
                 <h3>📝 Biên Tập Văn Bản</h3>
                 {% if file_content is not none %}
                     <div class="editor-wrapper">
-                        <p style="margin: 0 0 10px 0; font-size:13px; color:var(--text-muted);">Đang xem file: <strong style="color: var(--link-color);">/data/{{ edit_file_path }}</strong></p>
+                        <p style="margin: 0 0 10px 0; font-size:13px; color:var(--text-muted);">Đang xem file: <strong style="color: var(--link-color);">{{ edit_file_path }}</strong></p>
                         <form action="/api/fm/save" method="POST" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
                             <input type="hidden" name="subpath" value="{{ edit_file_path }}">
                             <textarea id="editor-text" name="content">{{ file_content }}</textarea>
@@ -1061,6 +1074,38 @@
         </div>
         
         <script>
+            let currentPath = '{{ current_path }}';
+            
+            // Path navigation functions
+            function enablePathEdit() {
+                document.getElementById('fm-path-display').style.display = 'none';
+                document.getElementById('fm-path-edit').style.display = 'inline';
+                document.getElementById('fm-path-input').focus();
+                document.getElementById('fm-path-input').select();
+            }
+            
+            function cancelPathEdit() {
+                document.getElementById('fm-path-display').style.display = 'inline';
+                document.getElementById('fm-path-edit').style.display = 'none';
+            }
+            
+            function navigateToPath() {
+                const path = document.getElementById('fm-path-input').value.trim();
+                if (path) {
+                    window.location.href = '/files?path=' + encodeURIComponent(path);
+                }
+            }
+            
+            // Allow Enter key to submit path
+            document.addEventListener('DOMContentLoaded', function() {
+                const pathInput = document.getElementById('fm-path-input');
+                if (pathInput) {
+                    pathInput.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter') navigateToPath();
+                    });
+                }
+            });
+            
             function showInlineModal(htmlContent) {
                 const modal = document.getElementById('inlineCustomModal');
                 document.getElementById('modal-box-content').innerHTML = htmlContent;
@@ -1355,6 +1400,131 @@
                     } else showStatusModal("Lỗi giải nén", data.message, "error");
                 });
             }
+        </script>
+        {% endif %}
+
+        {% if active_tab == 'terminal' %}
+        <div class="terminal-layout">
+            <div class="card" style="display:flex; flex-direction:column; height:calc(100vh - 140px); padding:0; overflow:hidden;">
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 15px; background:var(--bg-tabs); border-bottom:1px solid var(--border-color); flex-shrink:0;">
+                    <span style="font-size:13px; color:var(--text-muted);">🖥️ Terminal — <span style="font-family:monospace; color:#4caf50;">/home/user/app</span></span>
+                    <div style="display:flex; gap:6px;">
+                        <button id="terminal-reconnect-btn" onclick="terminalReconnect()" style="display:none; background:#ffc107; color:#000; border:none; border-radius:4px; padding:4px 12px; cursor:pointer; font-size:12px; font-weight:bold;">🔄 Reconnect</button>
+                        <button onclick="terminalStop()" style="background:#dc3545; color:#fff; border:none; border-radius:4px; padding:4px 12px; cursor:pointer; font-size:12px; font-weight:bold;">⏹️ Stop</button>
+                    </div>
+                </div>
+                <div id="terminal-container" style="flex:1; background:#0c0c0f; padding:4px; overflow:hidden;">
+                    <div style="color:var(--text-dark-gray); text-align:center; padding-top:80px; font-size:14px;">
+                        <div style="margin-bottom:10px;">⏳ Đang kết nối terminal...</div>
+                        <div style="font-size:11px; color:var(--text-muted);">Khởi tạo phiên bash tại /home/user/app</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+        <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+        <script>
+            let terminal = null;
+            let fitAddon = null;
+            let terminalPollId = null;
+            let terminalAlive = false;
+
+            function terminalInit() {
+                const container = document.getElementById('terminal-container');
+                container.innerHTML = '';
+                terminal = new Terminal({
+                    cursorBlink: true, cursorStyle: 'block', fontSize: 14,
+                    fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+                    theme: { background: '#0c0c0f', foreground: '#e0e0e6', cursor: '#4caf50',
+                        selection: 'rgba(76,175,80,0.3)', black: '#000000', red: '#e06c75',
+                        green: '#98c379', yellow: '#d19a66', blue: '#61afef', magenta: '#c678dd',
+                        cyan: '#56b6c2', white: '#abb2bf', brightBlack: '#5c6370', brightRed: '#e06c75',
+                        brightGreen: '#98c379', brightYellow: '#d19a66', brightBlue: '#61afef',
+                        brightMagenta: '#c678dd', brightCyan: '#56b6c2', brightWhite: '#ffffff'
+                    }, allowTransparency: false, scrollback: 5000
+                });
+                fitAddon = new FitAddon.FitAddon();
+                terminal.loadAddon(fitAddon);
+                terminal.open(container);
+                setTimeout(() => { try { fitAddon.fit(); } catch(e) {} }, 100);
+                terminal.onData(function(data) {
+                    if (terminalAlive) {
+                        fetch('/api/terminal/input', { method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({input: data})
+                        }).catch(err => console.error('Terminal input error:', err));
+                    }
+                });
+                terminalStart();
+            }
+
+            function terminalStart() {
+                document.getElementById('terminal-reconnect-btn').style.display = 'none';
+                fetch('/api/terminal/start', { method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({cols: 80, rows: 24})
+                }).then(res => res.json()).then(data => {
+                    if (data.status === 'success') {
+                        terminalAlive = true;
+                        if (terminal) terminal.focus();
+                        startTerminalPolling();
+                    } else {
+                        showTerminalError('Khong the khoi tao terminal: ' + data.message);
+                    }
+                }).catch(err => showTerminalError('Loi ket noi: ' + err));
+            }
+
+            function startTerminalPolling() {
+                if (terminalPollId) clearInterval(terminalPollId);
+                terminalPollId = setInterval(pollTerminalOutput, 150);
+                pollTerminalOutput();
+            }
+
+            function pollTerminalOutput() {
+                if (!terminalAlive) return;
+                fetch('/api/terminal/output').then(res => res.json()).then(data => {
+                    if (data.output && terminal) terminal.write(data.output);
+                    if (data.alive === false) {
+                        terminalAlive = false;
+                        clearInterval(terminalPollId);
+                        terminalPollId = null;
+                        showTerminalError('Ket noi terminal da dong.');
+                    }
+                }).catch(err => console.error('Terminal poll error:', err));
+            }
+
+            function showTerminalError(msg) {
+                if (terminal) {
+                    terminal.write('\n\x1b[31m' + msg + '\x1b[0m\n');
+                } else {
+                    document.getElementById('terminal-container').innerHTML = '<div style="color:#dc3545; text-align:center; padding-top:80px; font-size:14px;">' + msg + '</div>';
+                }
+                document.getElementById('terminal-reconnect-btn').style.display = 'inline-block';
+            }
+
+            function terminalStop() {
+                if (terminalPollId) { clearInterval(terminalPollId); terminalPollId = null; }
+                fetch('/api/terminal/stop', { method: 'POST' }).catch(() => {});
+                terminalAlive = false;
+                if (terminal) terminal.write('\n\x1b[33m Terminal da dung. Nhan Reconnect de khoi dong lai.\x1b[0m\n');
+                document.getElementById('terminal-reconnect-btn').style.display = 'inline-block';
+            }
+
+            function terminalReconnect() {
+                if (terminalPollId) { clearInterval(terminalPollId); terminalPollId = null; }
+                if (terminal) { terminal.reset(); terminal.write('\n\x1b[32m Dang ket noi lai...\x1b[0m\n'); }
+                terminalStart();
+            }
+
+            window.addEventListener('resize', function() {
+                if (fitAddon) { try { fitAddon.fit(); } catch(e) {} }
+            });
+
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(terminalInit, 300);
+            });
         </script>
         {% endif %}
 
