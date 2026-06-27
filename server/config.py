@@ -44,6 +44,8 @@ class Config:
     MONITOR_TPS_WARN = 18.0
     MONITOR_MSPT_GOOD = 20  # ms
     MONITOR_MSPT_WARN = 40  # ms
+    MONITOR_PING_GOOD = 200  # ms
+    MONITOR_PING_WARN = 300  # ms
     
     # Monitor Settings
     MONITOR_COOLDOWN = 300  # 5 phút giữa các alert lặp lại
@@ -109,7 +111,8 @@ class GlobalState:
             "disk": "green",
             "network": "green",
             "tps": "green",
-            "mspt": "green"
+            "mspt": "green",
+            "ping": "green"
         }
         self.last_alert_times = {}
         self.alert_history = []
@@ -161,7 +164,8 @@ class GlobalState:
             "disk": "green",
             "network": "green",
             "tps": "green",
-            "mspt": "green"
+            "mspt": "green",
+            "ping": "green"
         }
         self.last_alert_times = {}
         self.alert_history = []

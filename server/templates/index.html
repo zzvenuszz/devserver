@@ -755,7 +755,8 @@
                         <button class="btn-quick" onclick="sendQuickCmd('tps')">📊 Kiểm tra hiệu năng (/tps)</button>
                         <button class="btn-quick" onclick="sendQuickCmd('version')">ℹ️ Phiên bản Server (/version)</button>
                         <button class="btn-quick" onclick="sendQuickCmd('save-all')">💾 Lưu dữ liệu nhanh (/save-all)</button>
-                        <button class="btn-quick" onclick="sendQuickCmd('reload confirm')" style="color: #ffca28;">🔄 Nạp lại cấu hình (/reload)</button>
+                        <button class="btn-quick" onclick="sendQuickCmd('reload')" style="color: #ffca28;">🔄 Nạp lại cấu hình (/reload)</button>
+                        <button class="btn-quick" onclick="restartMinecraftServer()" style="color: #ff6b6b;">🔄 Restart MC Server (Stop & Start)</button>
                     </div>
 
                     <div class="cmd-group">
@@ -853,6 +854,40 @@
                     alert("🎉 Đã copy toàn bộ logs vào bộ nhớ tạm!");
                 }).catch(err => {
                     alert("Lỗi khi sao chép logs: " + err);
+                });
+            }
+
+            function restartMinecraftServer() {
+                if (!confirm('⚠️ Bạn có chắc muốn RESTART Minecraft Server?\nServer sẽ dừng (stop) và khởi động lại ngay sau đó.\nNgười chơi sẽ bị ngắt kết nối tạm thời.')) return;
+                
+                const btn = document.querySelector('.btn-quick[onclick*="restartMinecraftServer"]');
+                if (btn) {
+                    btn.textContent = '⏳ Đang restart...';
+                    btn.disabled = true;
+                    btn.style.opacity = '0.6';
+                }
+                
+                fetch('/api/server/restart', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert('✅ ' + data.message);
+                    } else {
+                        alert('❌ Lỗi: ' + data.message);
+                    }
+                    if (btn) {
+                        btn.textContent = '🔄 Restart MC Server (Stop & Start)';
+                        btn.disabled = false;
+                        btn.style.opacity = '1';
+                    }
+                })
+                .catch(err => {
+                    alert('❌ Lỗi kết nối: ' + err);
+                    if (btn) {
+                        btn.textContent = '🔄 Restart MC Server (Stop & Start)';
+                        btn.disabled = false;
+                        btn.style.opacity = '1';
+                    }
                 });
             }
 
@@ -1335,8 +1370,7 @@
                 <span class="monitor-toggle-label" id="monitor-status-text">Đang TẮT</span>
                 <div class="toggle-switch" id="monitor-toggle" onclick="toggleMonitor()"></div>
                 <div class="monitor-mode-selector">
-                    <button class="mode-btn" data-mode="on" onclick="setMonitorMode('on')">ON</button>
-                    <button class="mode-btn" data-mode="off" onclick="setMonitorMode('off')">OFF</button>
+                    <button class="mode-btn" data-mode="on" onclick="setMonitorMode('on')">ON (Luôn BẬT)</button>
                     <button class="mode-btn active" data-mode="auto" onclick="setMonitorMode('auto')">AUTO</button>
                 </div>
             </div>
@@ -1549,13 +1583,18 @@
                 .then(res => res.json())
                 .then(data => {
                     console.log('Monitor mode:', data.mode);
-                    // Nếu chuyển sang ON, tự động bật monitor
-                    if (data.mode === 'on' && !monitorEnabled) {
-                        toggleMonitor();
-                    }
-                    // Nếu chuyển sang OFF, tự động tắt monitor
-                    else if (data.mode === 'off' && monitorEnabled) {
-                        toggleMonitor();
+                    // Nếu chuyển sang ON, tự động bật monitor (và không bao giờ tắt)
+                    if (data.mode === 'on') {
+                        if (!monitorEnabled) {
+                            toggleMonitor();
+                        }
+                        // Khóa toggle ở vị trí ON
+                        const toggle = document.getElementById('monitor-toggle');
+                        if (toggle) toggle.style.cursor = 'not-allowed';
+                    } else if (data.mode === 'auto') {
+                        // Mở khóa toggle
+                        const toggle = document.getElementById('monitor-toggle');
+                        if (toggle) toggle.style.cursor = 'pointer';
                     }
                 })
                 .catch(err => console.error('Error setting monitor mode:', err));
@@ -1648,6 +1687,7 @@
                 
                 // Ping
                 document.getElementById('val-ping').textContent = stats.mc_ping;
+                updateMetricCard('ping', stats.mc_ping, 'ping', stats.alert_status?.ping);
             }
 
             function updateMetricCard(metric, value, type, backendStatus) {
@@ -1748,6 +1788,11 @@
                         green: 'MSPT đang ở mức tốt. Server phản hồi nhanh.',
                         yellow: 'MSPT tăng. Server phản hồi chậm hơn.',
                         red: 'MSPT rất cao. Server phản hồi rất chậm!'
+                    },
+                    ping: {
+                        green: 'Ping thấp. Kết nối mượt.',
+                        yellow: 'Ping ở mức trung bình. Kết nối có độ trễ.',
+                        red: 'Ping rất cao. Kết nối đang bị lag!'
                     }
                 };
                 return messages[metric]?.[status] || '';
@@ -1968,11 +2013,91 @@
                 }
             }
 
+            // AUTO mode timer: 5 phút không hoạt động thì tự tắt
+            let autoOffTimer = null;
+            const AUTO_OFF_DELAY = 5 * 60 * 1000; // 5 phút
+
+            function resetAutoOffTimer() {
+                if (autoOffTimer) {
+                    clearTimeout(autoOffTimer);
+                    autoOffTimer = null;
+                }
+                // Chỉ set timer nếu đang ở mode AUTO và monitor đang bật
+                if (currentMode === 'auto' && monitorEnabled) {
+                    autoOffTimer = setTimeout(() => {
+                        console.log('[Monitor] Tự động tắt monitor sau 5 phút inactive');
+                        if (monitorEnabled) {
+                            toggleMonitor();
+                        }
+                    }, AUTO_OFF_DELAY);
+                }
+            }
+
+            // Theo dõi visibility của tab
+            document.addEventListener('visibilitychange', function() {
+                if (document.hidden) {
+                    // Tab bị ẩn - bắt đầu đếm nếu mode AUTO
+                    if (currentMode === 'auto' && monitorEnabled) {
+                        resetAutoOffTimer();
+                    }
+                } else {
+                    // Tab được hiện lại
+                    if (currentMode === 'auto' && autoOffTimer) {
+                        clearTimeout(autoOffTimer);
+                        autoOffTimer = null;
+                        console.log('[Monitor] Hủy auto-off timer - tab đã được mở lại');
+                    }
+                    // Nếu monitor đang bật, tiếp tục polling
+                    if (monitorEnabled) {
+                        startMonitorPolling();
+                    }
+                }
+            });
+
+            // Đồng bộ trạng thái từ server khi tab monitor mở
+            function syncMonitorState() {
+                fetch('/api/monitor/stats')
+                    .then(res => res.json())
+                    .then(stats => {
+                        currentMode = stats.mode;
+                        monitorEnabled = stats.enabled;
+                        
+                        // Cập nhật UI toggle
+                        updateMonitorUI();
+                        
+                        // Cập nhật mode buttons
+                        document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+                        const modeBtn = document.querySelector(`.mode-btn[data-mode="${currentMode}"]`);
+                        if (modeBtn) modeBtn.classList.add('active');
+                        
+                        // Khóa toggle nếu mode ON
+                        const toggle = document.getElementById('monitor-toggle');
+                        if (toggle) {
+                            toggle.style.cursor = currentMode === 'on' ? 'not-allowed' : 'pointer';
+                        }
+                        
+                        // Nếu enabled, bắt đầu polling
+                        if (monitorEnabled) {
+                            startMonitorPolling();
+                        } else {
+                            stopMonitorPolling();
+                        }
+                        
+                        // Reset auto-off timer
+                        resetAutoOffTimer();
+                    })
+                    .catch(err => console.error('Error syncing monitor state:', err));
+            }
+
+            let currentMode = 'auto';
+
             // Khởi tạo
             document.addEventListener('DOMContentLoaded', function() {
                 initCharts();
                 initTrackToggles();
                 loadSettings();
+                // Đồng bộ trạng thái monitor từ server
+                syncMonitorState();
             });
 
             function applyThemeEngine() {

@@ -173,6 +173,14 @@ def get_status_color(metric_type, value):
         else:
             return "red"
     
+    elif metric_type == "ping":
+        if value <= Config.MONITOR_PING_GOOD:
+            return "green"
+        elif value <= Config.MONITOR_PING_WARN:
+            return "yellow"
+        else:
+            return "red"
+    
     return "green"
 
 
@@ -262,6 +270,17 @@ def send_minecraft_alert(metric_type, old_status, new_status, value):
             msg = "[Cảnh báo] MSPT rất cao. Server phản hồi rất chậm!"
             color = "red"
     
+    elif metric_type == "ping":
+        if new_status == "green":
+            msg = "[Giám sát] Ping tốt. Server phản hồi nhanh."
+            color = "green"
+        elif new_status == "yellow":
+            msg = "[Cảnh báo] Ping delay tăng. Kết nối có thể bị gián đoạn nhẹ."
+            color = "yellow"
+        else:
+            msg = "[Cảnh báo] Ping rất cao. Kết nối đang bị lag nghiêm trọng!"
+            color = "red"
+    
     else:
         return
     
@@ -292,7 +311,8 @@ def monitor_system():
     
     while True:
         try:
-            if not state.monitor_enabled:
+            # Mode AUTO -> chỉ chạy khi enabled; Mode ON -> luôn chạy
+            if state.monitor_mode == "auto" and not state.monitor_enabled:
                 time.sleep(1)
                 continue
             
@@ -339,15 +359,16 @@ def monitor_system():
 
 
 def monitor_minecraft():
-    """Theo dõi TPS, MSPT, Players, Ping từ Minecraft server"""
+    """Theo dõi TPS, MSPT, Players từ Minecraft server"""
     while True:
         try:
-            if not state.monitor_enabled:
+            # Mode ON -> luôn chạy; Mode AUTO -> chỉ chạy khi enabled
+            if state.monitor_mode == "auto" and not state.monitor_enabled:
                 time.sleep(1)
                 continue
             
             if state.java_process and state.java_process.poll() is None:
-                # Chỉ gửi lệnh tps nếu được bật
+                # Gửi lệnh tps (trả về cả TPS và MSPT trên Paper)
                 if getattr(state, 'monitor_track_tps', True):
                     send_command("tps")
                     time.sleep(0.5)
@@ -356,20 +377,61 @@ def monitor_minecraft():
                 if getattr(state, 'monitor_track_players', True):
                     send_command("list")
                     time.sleep(0.5)
-                
-                # Ping server (giả lập bằng thời gian response)
-                state.mc_ping = 0  # Sẽ được cập nhật bởi API
             
-            time.sleep(15)  # Tăng interval lên 15s để giảm spam
+            time.sleep(15)  # Interval 15s để giảm spam
         except Exception:
             time.sleep(15)
+
+
+def monitor_ping():
+    """Đo ping đến Minecraft server mỗi 5 giây với 4 gói"""
+    import subprocess
+    import re
+    while True:
+        try:
+            # Mode ON -> luôn chạy; Mode AUTO -> chỉ chạy khi enabled
+            if state.monitor_mode == "auto" and not state.monitor_enabled:
+                state.mc_ping = 0
+                time.sleep(1)
+                continue
+            
+            # Ping 4 gói đến localhost (hoặc IP server)
+            try:
+                result = subprocess.run(
+                    ["ping", "-c", "4", "127.0.0.1"],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                output = result.stdout
+                
+                # Parse avg ping từ output: "rtt min/avg/max/mdev = 0.123/0.456/0.789/0.012 ms"
+                match = re.search(r'= [\d.]+/([\d.]+)/', output)
+                if match:
+                    ping_avg = float(match.group(1))
+                    state.mc_ping = round(ping_avg, 1)
+                else:
+                    # Fallback: nếu không parse được, set về 0
+                    state.mc_ping = 0
+            except subprocess.TimeoutExpired:
+                state.mc_ping = 999  # Timeout = ping rất cao
+            except FileNotFoundError:
+                # Môi trường không có ping command, bỏ qua
+                pass
+            except Exception:
+                pass
+            
+            time.sleep(5)  # Ping mỗi 5 giây
+        except Exception:
+            time.sleep(5)
 
 
 def chart_data_collector():
     """Thu thập dữ liệu chart mỗi giây"""
     while True:
         try:
-            if not state.monitor_enabled:
+            # Mode AUTO -> chỉ chạy khi enabled; Mode ON -> luôn chạy
+            if state.monitor_mode == "auto" and not state.monitor_enabled:
                 time.sleep(1)
                 continue
             
@@ -451,12 +513,19 @@ def alert_manager():
                     state.current_alert_status["tps"] = new_tps_status
                     send_minecraft_alert("tps", old, new_tps_status, state.mc_tps)
             
-            # Kiểm tra MSPT (luôn bật vì không gửi lệnh)
+            # Kiểm tra MSPT (luôn bật)
             new_mspt_status = get_status_color("mspt", state.mc_mspt)
             if new_mspt_status != state.current_alert_status["mspt"]:
                 old = state.current_alert_status["mspt"]
                 state.current_alert_status["mspt"] = new_mspt_status
                 send_minecraft_alert("mspt", old, new_mspt_status, state.mc_mspt)
+            
+            # Kiểm tra Ping
+            new_ping_status = get_status_color("ping", state.mc_ping)
+            if new_ping_status != state.current_alert_status["ping"]:
+                old = state.current_alert_status["ping"]
+                state.current_alert_status["ping"] = new_ping_status
+                send_minecraft_alert("ping", old, new_ping_status, state.mc_ping)
             
             time.sleep(1)
         except Exception:
@@ -551,14 +620,12 @@ def toggle_monitor():
 
 
 def set_monitor_mode(mode):
-    """Đặt chế độ monitor: 'on', 'off', 'auto'"""
-    if mode in ["on", "off", "auto"]:
+    """Đặt chế độ monitor: 'on' hoặc 'auto'"""
+    if mode in ["on", "auto"]:
         state.monitor_mode = mode
         if mode == "on":
             state.monitor_enabled = True
             state.monitor_last_active = time.time()
-        elif mode == "off":
-            state.monitor_enabled = False
         # auto mode sẽ được xử lý bởi frontend
     return state.monitor_mode
 
@@ -578,24 +645,43 @@ def parse_tps_from_log(line):
 
 def parse_mspt_from_log(line):
     """Parse MSPT từ log Minecraft"""
-    # Ví dụ: "MSPT: 15.2"
+    # Paper format from /tps: "MSPT: Min/Med/95th/99th/Max: 1.23/2.14/3.45/4.56/5.67"
+    # Vanilla format from /mspt: "MSPT: 15.2"
     if "MSPT:" in line:
         try:
-            mspt = float(line.split("MSPT:")[1].strip().split()[0])
-            state.mc_mspt = round(mspt, 2)
+            if "Min/Med" in line or "/" in line.split("MSPT:")[1].strip():
+                # Paper format: lấy giá trị Med (index 1 trong dãy Min/Med/95th/99th/Max)
+                parts = line.split("MSPT:")[1].strip()
+                if ":" in parts:
+                    values = parts.split(":")[1].strip().split("/")
+                    if len(values) >= 2:
+                        mspt = float(values[1].strip())  # Med value
+                        state.mc_mspt = round(mspt, 2)
+            else:
+                # Simple format: "MSPT: 15.2"
+                mspt = float(line.split("MSPT:")[1].strip().split()[0])
+                state.mc_mspt = round(mspt, 2)
         except Exception:
             pass
 
 
 def parse_players_from_log(line):
     """Parse số người chơi từ log"""
-    # Ví dụ: "There are 5/20 players online"
+    # Paper format: "There are 0 of a max of 10 players online:"
+    # Vanilla format: "There are 5/20 players online"
     if "players online" in line:
         try:
-            parts = line.split("There are")[1].split("players online")[0].strip().split("/")
-            if len(parts) == 2:
+            if "of a max of" in line:
+                # Paper format: "There are X of a max of Y players online:"
+                parts = line.split("There are")[1].split("of a max of")
                 state.mc_players = int(parts[0].strip())
-                state.mc_max_players = int(parts[1].strip())
+                state.mc_max_players = int(parts[1].split("players online")[0].strip())
+            else:
+                # Vanilla format: "There are X/Y players online"
+                parts = line.split("There are")[1].split("players online")[0].strip().split("/")
+                if len(parts) == 2:
+                    state.mc_players = int(parts[0].strip())
+                    state.mc_max_players = int(parts[1].strip())
         except Exception:
             pass
 
@@ -606,7 +692,8 @@ def start_monitor_threads():
         threading.Thread(target=monitor_system, daemon=True),
         threading.Thread(target=monitor_minecraft, daemon=True),
         threading.Thread(target=alert_manager, daemon=True),
-        threading.Thread(target=chart_data_collector, daemon=True)
+        threading.Thread(target=chart_data_collector, daemon=True),
+        threading.Thread(target=monitor_ping, daemon=True)
     ]
     
     for t in threads:

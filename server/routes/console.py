@@ -3,7 +3,7 @@ Console Routes - API cho console và command
 """
 from flask import Blueprint, jsonify, request
 from server.config import state, Config
-from server.services.minecraft import send_command, is_server_running
+from server.services.minecraft import send_command, is_server_running, stop_server, restart_paper
 from server.utils import add_log
 
 console_bp = Blueprint('console', __name__)
@@ -49,5 +49,25 @@ def send_command_route():
     success, message = send_command(cmd)
     if success:
         return jsonify({"status": "success"})
+    else:
+        return jsonify({"status": "error", "message": message})
+
+
+@console_bp.route("/api/server/stop", methods=["POST"])
+def api_stop_server():
+    """API dừng Minecraft Server"""
+    success, message = stop_server()
+    if success:
+        return jsonify({"status": "success", "message": message})
+    else:
+        return jsonify({"status": "error", "message": message})
+
+
+@console_bp.route("/api/server/restart", methods=["POST"])
+def api_restart_server():
+    """API khởi động lại Minecraft Server (không restart toàn bộ Space)"""
+    success, message = restart_paper()
+    if success:
+        return jsonify({"status": "success", "message": message})
     else:
         return jsonify({"status": "error", "message": message})
