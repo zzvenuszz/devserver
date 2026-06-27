@@ -311,8 +311,8 @@ def monitor_system():
     
     while True:
         try:
-            # Mode AUTO -> chỉ chạy khi enabled; Mode ON -> luôn chạy
-            if state.monitor_mode == "auto" and not state.monitor_enabled:
+            # Master switch: chỉ chạy khi monitor được bật
+            if not state.monitor_enabled:
                 time.sleep(1)
                 continue
             
@@ -362,8 +362,8 @@ def monitor_minecraft():
     """Theo dõi TPS, MSPT, Players từ Minecraft server"""
     while True:
         try:
-            # Mode ON -> luôn chạy; Mode AUTO -> chỉ chạy khi enabled
-            if state.monitor_mode == "auto" and not state.monitor_enabled:
+            # Master switch: chỉ chạy khi monitor được bật
+            if not state.monitor_enabled:
                 time.sleep(1)
                 continue
             
@@ -389,16 +389,19 @@ def monitor_ping():
     import re
     while True:
         try:
-            # Mode ON -> luôn chạy; Mode AUTO -> chỉ chạy khi enabled
-            if state.monitor_mode == "auto" and not state.monitor_enabled:
+            # Master switch: chỉ chạy khi monitor được bật
+            if not state.monitor_enabled:
                 state.mc_ping = 0
                 time.sleep(1)
                 continue
             
-            # Ping 4 gói đến localhost (hoặc IP server)
+            # Ping 4 gói đến server IP thực tế
+            ping_ip = "127.0.0.1"
+            if state.server_ip and state.server_ip not in ["127.0.0.1", "localhost", "Đang lấy..."]:
+                ping_ip = state.server_ip
             try:
                 result = subprocess.run(
-                    ["ping", "-c", "4", "127.0.0.1"],
+                    ["ping", "-c", "4", ping_ip],
                     capture_output=True,
                     text=True,
                     timeout=10
@@ -430,8 +433,8 @@ def chart_data_collector():
     """Thu thập dữ liệu chart mỗi giây"""
     while True:
         try:
-            # Mode AUTO -> chỉ chạy khi enabled; Mode ON -> luôn chạy
-            if state.monitor_mode == "auto" and not state.monitor_enabled:
+            # Master switch: chỉ chạy khi monitor được bật
+            if not state.monitor_enabled:
                 time.sleep(1)
                 continue
             
@@ -537,9 +540,19 @@ def monitor_java():
     Giám sát RAM và CPU của Minecraft Server process
     Chạy trong thread riêng, log mỗi 15 giây
     """
+    prev_server_running = False
     while True:
         try:
-            if state.java_process and state.java_process.poll() is None:
+            current_running = state.java_process and state.java_process.poll() is None
+            
+            # Auto-off monitor khi server ngừng chạy
+            if prev_server_running and not current_running and state.monitor_enabled:
+                state.monitor_enabled = False
+                add_log("[MONITOR] Server offline - Tự động tắt monitor", "monitor")
+            
+            prev_server_running = current_running
+            
+            if current_running:
                 p = psutil.Process(state.java_process.pid)
                 state.current_mc_ram = p.memory_info().rss // 1024 // 1024
                 state.current_mc_cpu = int(p.cpu_percent(interval=0.5))
@@ -623,10 +636,7 @@ def set_monitor_mode(mode):
     """Đặt chế độ monitor: 'on' hoặc 'auto'"""
     if mode in ["on", "auto"]:
         state.monitor_mode = mode
-        if mode == "on":
-            state.monitor_enabled = True
-            state.monitor_last_active = time.time()
-        # auto mode sẽ được xử lý bởi frontend
+        # Không tự động bật/tắt monitor - toggle là master switch
     return state.monitor_mode
 
 

@@ -62,3 +62,12 @@ def parse_and_add_raw_log(line):
             log_type = "plugins"
 
     add_log(line_str, log_type=log_type)
+
+    # Parse Minecraft metrics from log
+    try:
+        from server.services.monitor import parse_tps_from_log, parse_mspt_from_log, parse_players_from_log
+        parse_tps_from_log(line_str)
+        parse_mspt_from_log(line_str)
+        parse_players_from_log(line_str)
+    except Exception:
+        pass

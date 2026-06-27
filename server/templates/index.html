@@ -1583,19 +1583,8 @@
                 .then(res => res.json())
                 .then(data => {
                     console.log('Monitor mode:', data.mode);
-                    // Nếu chuyển sang ON, tự động bật monitor (và không bao giờ tắt)
-                    if (data.mode === 'on') {
-                        if (!monitorEnabled) {
-                            toggleMonitor();
-                        }
-                        // Khóa toggle ở vị trí ON
-                        const toggle = document.getElementById('monitor-toggle');
-                        if (toggle) toggle.style.cursor = 'not-allowed';
-                    } else if (data.mode === 'auto') {
-                        // Mở khóa toggle
-                        const toggle = document.getElementById('monitor-toggle');
-                        if (toggle) toggle.style.cursor = 'pointer';
-                    }
+                    // Mode chỉ thay đổi hành vi timeout, không tự động bật/tắt toggle
+                    resetAutoOffTimer();
                 })
                 .catch(err => console.error('Error setting monitor mode:', err));
             }
@@ -2069,12 +2058,6 @@
                         document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
                         const modeBtn = document.querySelector(`.mode-btn[data-mode="${currentMode}"]`);
                         if (modeBtn) modeBtn.classList.add('active');
-                        
-                        // Khóa toggle nếu mode ON
-                        const toggle = document.getElementById('monitor-toggle');
-                        if (toggle) {
-                            toggle.style.cursor = currentMode === 'on' ? 'not-allowed' : 'pointer';
-                        }
                         
                         // Nếu enabled, bắt đầu polling
                         if (monitorEnabled) {
