@@ -932,9 +932,7 @@
                 fetch('/api/server/restart', { method: 'POST' })
                 .then(res => res.json())
                 .then(data => {
-                    if (data.status === 'success') {
-                        alert('✅ ' + data.message);
-                    } else {
+                    if (data.status !== 'success') {
                         alert('❌ Lỗi: ' + data.message);
                     }
                     if (btn) {
