@@ -71,8 +71,8 @@ class GlobalState:
         self.logs_condition = threading.Condition()
         self.java_process = None
         self.bore_processes = {}
-        self.panel_public_address = None
         self.minecraft_public_address = None
+        self.bore_enabled = False
         self.minecraft_version = ""
         self.current_mc_ram = 0
         self.current_mc_cpu = 0
@@ -143,8 +143,8 @@ class GlobalState:
         self.log_sequence = 0
         self.java_process = None
         self.bore_processes = {}
-        self.panel_public_address = None
         self.minecraft_public_address = None
+        self.bore_enabled = False
         self.minecraft_version = ""
         self.current_mc_ram = 0
         self.current_mc_cpu = 0

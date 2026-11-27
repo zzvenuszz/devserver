@@ -45,7 +45,7 @@ server/
 
 ### Services (`services/`)
 - **minecraft.py**: Quản lý Paper MC server, gửi lệnh
-- **bore.py**: Mở tunnel public cho panel và Minecraft qua bore.pub
+- **bore.py**: Mở tunnel Minecraft qua bore.pub khi được bật trong panel (mặc định tắt)
 - **paper.py**: Lấy danh sách phiên bản PaperMC, tải server JAR và kiểm tra SHA-256
 - **monitor.py**: Giám sát RAM/CPU
 - **server_info.py**: Lấy IP/location máy chủ
@@ -74,7 +74,7 @@ gunicorn -w 4 -b 0.0.0.0:7860 app:app
 
 - Port: Biến môi trường `PORT` (mặc định 7860)
 - Admin password: Biến môi trường `ADMIN_PASS`
-- bore.pub: Không cần tài khoản hoặc khóa; `PORT` là cổng panel và `MINECRAFT_PORT` (mặc định `25565`) là cổng Minecraft
+- bore.pub: Không cần tài khoản hoặc khóa; chỉ công khai cổng Minecraft (`MINECRAFT_PORT`, mặc định `25565`) khi bật nút trong panel. Panel không được tunnel qua bore.pub.
 - Minecraft: Bộ chọn Paper lấy phiên bản trực tiếp từ PaperMC; server JAR tải về `/data`, phiên bản đã chọn lưu trong `/data/panel/settings.json`. Trước lượt tải JAR mới, panel xóa JAR ở gốc `/data` và cache server cũ; JAR plugin trong `/data/plugins` được giữ lại. Nút khởi chạy dò JAR server theo nội dung, không phụ thuộc tên file.
 - Java: Docker kèm Java 8, 11, 17, 21 và 25 để chạy các thế hệ Paper tương ứng
 

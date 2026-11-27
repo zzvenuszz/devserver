@@ -8,6 +8,7 @@ from server.services.monitor import (
     get_monitor_stats, get_chart_data, toggle_monitor,
     set_monitor_mode, benchmark_disk_network, start_monitor_threads
 )
+from server.services.bore import set_bore_enabled
 from server.utils.persistence import (
     load_settings, save_settings, get_current_settings,
     load_benchmark_results, save_benchmark_results
@@ -16,11 +17,24 @@ from server.utils.persistence import (
 monitor_bp = Blueprint('monitor', __name__)
 
 
-@monitor_bp.route("/api/tunnels")
+@monitor_bp.route("/api/tunnels", methods=["GET", "POST"])
 def api_tunnels():
-    """Current public endpoints assigned by bore.pub."""
+    """Read or change the optional Minecraft bore.pub tunnel."""
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        if not isinstance(data.get("enabled"), bool):
+            return jsonify({"status": "error", "message": "enabled must be a boolean"}), 400
+        try:
+            set_bore_enabled(data["enabled"])
+        except RuntimeError as exc:
+            return jsonify({"status": "error", "message": str(exc)}), 503
+        settings = load_settings()
+        settings.setdefault("bore", {})["enabled"] = state.bore_enabled
+        if not save_settings(settings):
+            set_bore_enabled(False)
+            return jsonify({"status": "error", "message": "Unable to save settings"}), 500
     return jsonify({
-        "panel": state.panel_public_address,
+        "enabled": state.bore_enabled,
         "minecraft": state.minecraft_public_address,
     })
 

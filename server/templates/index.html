@@ -729,15 +729,38 @@
         </div>
     </div>
     <div class="public-addresses" id="public-addresses">
-        <span>Panel public: <strong id="panel-public-address">Đang kết nối bore.pub...</strong></span>
-        <span>Minecraft public: <strong id="minecraft-public-address">Đang kết nối bore.pub...</strong></span>
+        <label for="bore-toggle">Công khai Minecraft qua bore.pub</label>
+        <input id="bore-toggle" type="checkbox" onchange="setBoreEnabled(this.checked)">
+        <span id="bore-status">Đang tắt</span>
+        <span>Địa chỉ: <strong id="minecraft-public-address">—</strong></span>
     </div>
     <script>
         function refreshPublicAddresses() {
             fetch('/api/tunnels').then(response => response.json()).then(data => {
-                document.getElementById('panel-public-address').textContent = data.panel || 'Đang cấp địa chỉ...';
-                document.getElementById('minecraft-public-address').textContent = data.minecraft || 'Đang cấp địa chỉ...';
+                document.getElementById('bore-toggle').checked = Boolean(data.enabled);
+                document.getElementById('minecraft-public-address').textContent = data.minecraft || '—';
+                document.getElementById('bore-status').textContent = !data.enabled ? 'Đang tắt' : (data.minecraft ? 'Đang hoạt động' : 'Đang cấp địa chỉ...');
             }).catch(() => {});
+        }
+        async function setBoreEnabled(enabled) {
+            const toggle = document.getElementById('bore-toggle');
+            const status = document.getElementById('bore-status');
+            toggle.disabled = true;
+            status.textContent = enabled ? 'Đang bật...' : 'Đang tắt...';
+            try {
+                const response = await fetch('/api/tunnels', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({enabled})
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.message || 'Không thể cập nhật tunnel');
+                refreshPublicAddresses();
+            } catch (error) {
+                toggle.checked = !enabled;
+                status.textContent = error.message;
+            } finally {
+                toggle.disabled = false;
+            }
         }
         refreshPublicAddresses();
         setInterval(refreshPublicAddresses, 5000);

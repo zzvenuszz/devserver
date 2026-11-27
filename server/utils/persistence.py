@@ -35,6 +35,9 @@ def load_settings():
         },
         "minecraft": {
             "version": ""
+        },
+        "bore": {
+            "enabled": False
         }
     }
     
@@ -133,6 +136,9 @@ def apply_settings_to_state(settings):
 
         if "minecraft" in settings:
             state.minecraft_version = settings["minecraft"].get("version", "")
+
+        if "bore" in settings:
+            state.bore_enabled = bool(settings["bore"].get("enabled", False))
         
         # Benchmark results
         benchmark = load_benchmark_results()
@@ -161,6 +167,9 @@ def get_current_settings():
         },
         "minecraft": {
             "version": state.minecraft_version
+        },
+        "bore": {
+            "enabled": bool(getattr(state, "bore_enabled", False))
         },
         "benchmark": {
             "disk_max_speed": state.disk_max_speed,
