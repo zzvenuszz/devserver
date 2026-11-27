@@ -1,16 +1,16 @@
 """Publish the panel and Minecraft TCP ports through bore.pub."""
+import os
 import re
 import shutil
 import subprocess
 import time
-import os
 
 from server.config import BASE_DATA_DIR, Config, state
 from server.utils import add_log
 from server.utils.logger import parse_and_add_raw_log
 
 
-_ADDRESS_RE = re.compile(r"(?:bore\.pub|[\w.-]+):\d+")
+_ADDRESS_RE = re.compile(r"\blistening at (bore\.pub:\d+)(?:\s|$)", re.IGNORECASE)
 
 
 def _run_tunnel(name, local_port):
@@ -33,8 +33,9 @@ def _run_tunnel(name, local_port):
                 parse_and_add_raw_log(f"[BORE] [{name}] {line}")
                 match = _ADDRESS_RE.search(line)
                 if match:
-                    setattr(state, address_attr, match.group(0))
-                    add_log(f"bore.pub {name} address: {match.group(0)}", "bore")
+                    address = match.group(1)
+                    setattr(state, address_attr, address)
+                    add_log(f"bore.pub {name} address: {address}", "bore")
             code = process.wait()
             add_log(f"bore.pub tunnel {name} exited ({code}); retrying in 5 seconds", "error")
         except Exception as exc:
