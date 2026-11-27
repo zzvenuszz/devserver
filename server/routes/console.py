@@ -1,10 +1,12 @@
 """
 Console Routes - API cho console và command
 """
-import os
 from flask import Blueprint, jsonify, request
 from server.config import state, Config
-from server.services.minecraft import send_command, is_server_running, stop_server, restart_paper
+from server.services.minecraft import (
+    send_command, is_server_running, stop_server, restart_paper,
+    launch_server_from_jar,
+)
 from server.services.paper import get_paper_versions, ensure_paper_jar
 from server.utils import add_log
 from server.utils.persistence import load_settings, save_settings
@@ -44,7 +46,7 @@ def api_minecraft_version_select():
         return jsonify({
             "status": "success",
             "version": version,
-            "jar": os.path.basename(jar_path),
+            "jar": jar_path,
             "running": is_server_running(),
             "message": "Đã tải và lưu server JAR. Hãy khởi động lại server để áp dụng phiên bản mới." if is_server_running() else "Đã tải và lưu server JAR; server sẽ dùng phiên bản này khi khởi động.",
         })
@@ -63,6 +65,13 @@ def get_logs():
 def api_ping():
     """Health check endpoint"""
     return jsonify({"status": "pong"})
+
+
+@console_bp.route("/api/server/start", methods=["POST"])
+def api_start_server():
+    """Start a detected server JAR from persistent /data storage."""
+    success, message = launch_server_from_jar()
+    return jsonify({"status": "success" if success else "error", "message": message}), (200 if success else 409)
 
 
 @console_bp.route("/api/command", methods=["POST"])

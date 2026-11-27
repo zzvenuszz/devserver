@@ -5,8 +5,10 @@ import os
 import re
 import threading
 import urllib.request
+import zipfile
 
 from server.config import BASE_DATA_DIR, Config
+from server.utils import add_log
 
 
 API_ROOT = "https://fill.papermc.io/v3/projects/paper"
@@ -50,7 +52,79 @@ def get_latest_paper_version():
 def paper_jar_path(version):
     if not VERSION_PATTERN.fullmatch(version):
         raise ValueError("Phiên bản Minecraft không hợp lệ")
-    return os.path.join(BASE_DATA_DIR, "servers", f"paper-{version}.jar")
+    return os.path.join(BASE_DATA_DIR, f"paper-{version}.jar")
+
+
+def _remove_old_server_jars():
+    """Remove previous root server JARs and the old panel-managed cache."""
+    removed = []
+    for name in os.listdir(BASE_DATA_DIR):
+        path = os.path.join(BASE_DATA_DIR, name)
+        if os.path.isfile(path) and name.lower().endswith(".jar"):
+            os.remove(path)
+            removed.append(path)
+
+    old_cache = os.path.join(BASE_DATA_DIR, "servers")
+    if os.path.isdir(old_cache):
+        for root, _, files in os.walk(old_cache):
+            for name in files:
+                if name.lower().endswith(".jar"):
+                    path = os.path.join(root, name)
+                    os.remove(path)
+                    removed.append(path)
+    return removed
+
+
+def find_server_jar(selected_version=""):
+    """Find a server JAR by inspecting its contents, even if it was renamed."""
+    server_markers = (
+        "io/papermc/paperclip/paperclip.class",
+        "io/papermc/paperclip/main.class",
+        "org/bukkit/craftbukkit/main.class",
+        "net/minecraft/bundler/main.class",
+        "net/minecraft/server/main.class",
+    )
+    candidates = []
+    root_level_jars = []
+    for root, _, files in os.walk(BASE_DATA_DIR):
+        for name in files:
+            if not name.lower().endswith(".jar"):
+                continue
+            path = os.path.join(root, name)
+            if root == BASE_DATA_DIR:
+                root_level_jars.append(path)
+            try:
+                with zipfile.ZipFile(path) as archive:
+                    entries = {entry.lower() for entry in archive.namelist()}
+                    if any(marker in entries for marker in server_markers):
+                        candidates.append(path)
+            except (OSError, zipfile.BadZipFile):
+                continue
+
+    preferred_name = f"paper-{selected_version}.jar".lower() if selected_version else ""
+    preferred = [path for path in candidates if os.path.basename(path).lower() == preferred_name]
+    if preferred:
+        preferred_root = [path for path in preferred if os.path.dirname(path) == BASE_DATA_DIR]
+        if len(preferred_root) == 1:
+            return preferred_root[0]
+        if len(preferred) == 1:
+            return preferred[0]
+    if len(candidates) == 1:
+        return candidates[0]
+    named_root_jars = [
+        path for path in root_level_jars
+        if any(marker in os.path.basename(path).lower() for marker in ("paper", "server", "spigot", "craftbukkit"))
+    ]
+    if not candidates and len(named_root_jars) == 1:
+        return named_root_jars[0]
+    if not candidates and len(root_level_jars) == 1 and os.path.getsize(root_level_jars[0]) >= 1024 * 1024:
+        return root_level_jars[0]
+    if not candidates:
+        raise FileNotFoundError("Không tìm thấy server JAR trong /data")
+    raise RuntimeError(
+        "Tìm thấy nhiều server JAR, không thể tự chọn: "
+        + ", ".join(os.path.relpath(path, BASE_DATA_DIR) for path in candidates)
+    )
 
 
 def java_executable_for_version(version):
@@ -102,6 +176,9 @@ def _ensure_paper_jar(version):
     )
     digest = hashlib.sha256()
     try:
+        removed_jars = _remove_old_server_jars()
+        if removed_jars:
+            add_log(f"Đã xóa {len(removed_jars)} JAR server cũ trước khi tải phiên bản {version}.", "system")
         with urllib.request.urlopen(request, timeout=60) as response, open(temporary_path, "wb") as output:
             while True:
                 chunk = response.read(1024 * 1024)

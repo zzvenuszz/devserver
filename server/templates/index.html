@@ -782,6 +782,7 @@
                         <button class="btn-quick" onclick="sendQuickCmd('version')">ℹ️ Phiên bản Server (/version)</button>
                         <button class="btn-quick" onclick="sendQuickCmd('save-all')">💾 Lưu dữ liệu nhanh (/save-all)</button>
                         <button class="btn-quick" onclick="sendQuickCmd('reload')" style="color: #ffca28;">🔄 Nạp lại cấu hình (/reload)</button>
+                        <button class="btn-quick" id="start-server-from-jar" onclick="startMinecraftServerFromJar()" style="color:#4caf50;">🚀 Khởi chạy server từ JAR trong /data</button>
                         <button class="btn-quick" onclick="restartMinecraftServer()" style="color: #ff6b6b;">🔄 Restart MC Server (Stop & Start)</button>
                     </div>
 
@@ -948,6 +949,23 @@
                         btn.style.opacity = '1';
                     }
                 });
+            }
+
+            function startMinecraftServerFromJar() {
+                const btn = document.getElementById('start-server-from-jar');
+                btn.disabled = true;
+                btn.textContent = '⏳ Đang tìm server JAR...';
+                fetch('/api/server/start', { method: 'POST' })
+                    .then(async response => {
+                        const data = await response.json();
+                        if (!response.ok || data.status !== 'success') throw new Error(data.message || 'Không thể khởi chạy server');
+                        alert('✅ ' + data.message);
+                    })
+                    .catch(error => alert('❌ ' + error.message))
+                    .finally(() => {
+                        btn.disabled = false;
+                        btn.textContent = '🚀 Khởi chạy server từ JAR trong /data';
+                    });
             }
 
             const inputField = document.getElementById('cmd-input');

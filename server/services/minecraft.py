@@ -7,7 +7,12 @@ import subprocess
 import threading
 from server.config import state, Config, BASE_DATA_DIR
 from server.utils import add_log
-from server.services.paper import ensure_paper_jar, get_latest_paper_version, java_executable_for_version
+from server.services.paper import (
+    ensure_paper_jar, find_server_jar, get_latest_paper_version,
+    java_executable_for_version,
+)
+
+_start_lock = threading.Lock()
 
 
 def _selected_paper_jar():
@@ -27,26 +32,27 @@ def _selected_paper_jar():
     return version, jar_path
 
 
-def _start_paper_process():
-    setup_plugins_directory()
-    try:
-        version, jar_path = _selected_paper_jar()
-    except Exception as exc:
-        add_log(f"Không thể chuẩn bị server JAR: {exc}", "error")
+def _start_paper_process(jar_path=None):
+    if not _start_lock.acquire(blocking=False):
+        add_log("Minecraft Server đang chuẩn bị khởi chạy.", "error")
         return
 
-    cmd = [
-        java_executable_for_version(version),
-        f"-Xms{Config.MC_RAM_MIN}",
-        f"-Xmx{Config.MC_RAM_MAX}",
-        "-XshowSettings:vm",
-        "-jar",
-        jar_path,
-        "--nogui",
-    ]
-    add_log(f"Starting Paper Minecraft {version} with High-Performance Settings...", "system")
-
     try:
+        setup_plugins_directory()
+        if jar_path is None:
+            version, jar_path = _selected_paper_jar()
+        else:
+            version = state.minecraft_version or get_latest_paper_version()
+        cmd = [
+            java_executable_for_version(version),
+            f"-Xms{Config.MC_RAM_MIN}",
+            f"-Xmx{Config.MC_RAM_MAX}",
+            "-XshowSettings:vm",
+            "-jar",
+            jar_path,
+            "--nogui",
+        ]
+        add_log(f"Starting Paper Minecraft {version} from {jar_path}...", "system")
         state.java_process = subprocess.Popen(
             cmd,
             cwd=BASE_DATA_DIR,
@@ -56,11 +62,31 @@ def _start_paper_process():
             text=True,
             bufsize=1
         )
+    except Exception as exc:
+        add_log(f"Lỗi khởi chạy Paper Server: {exc}", "error")
+        return
+    finally:
+        _start_lock.release()
+
+    try:
         for line in state.java_process.stdout:
             from server.utils import parse_and_add_raw_log
             parse_and_add_raw_log(line)
     except Exception as exc:
         add_log(f"Lỗi khởi chạy Paper Server: {exc}", "error")
+
+
+def launch_server_from_jar():
+    """Launch a uniquely detected server JAR from persistent storage."""
+    if is_server_running() or _start_lock.locked():
+        return False, "Minecraft Server đang chạy hoặc đang khởi chạy."
+    try:
+        jar_path = find_server_jar(state.minecraft_version)
+    except Exception as exc:
+        return False, str(exc)
+
+    threading.Thread(target=_start_paper_process, args=(jar_path,), daemon=True).start()
+    return True, f"Đang khởi chạy {os.path.relpath(jar_path, BASE_DATA_DIR)}..."
 
 
 def setup_plugins_directory():
