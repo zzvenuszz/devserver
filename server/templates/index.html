@@ -856,14 +856,17 @@
             }
 
             let rawLogsData = [];
-            function fetchLogs() {
-                fetch('/api/logs')
-                .then(res => res.json())
-                .then(data => {
-                    rawLogsData = data.logs;
-                    renderLogs();
-                });
-            }
+            const logsStream = new EventSource('/api/logs/stream');
+            logsStream.addEventListener('snapshot', event => {
+                rawLogsData = JSON.parse(event.data);
+                renderLogs();
+            });
+            logsStream.onmessage = event => {
+                const entry = JSON.parse(event.data);
+                rawLogsData.push(entry);
+                if (rawLogsData.length > 600) rawLogsData.shift();
+                renderLogs();
+            };
 
             function renderLogs() {
                 const el = document.getElementById('logs-output');
@@ -900,7 +903,6 @@
                     body: JSON.stringify({command: cmdStr})
                 }).then(res => res.json()).then(data => {
                     if(data.status === 'error') alert(data.message);
-                    fetchLogs();
                 });
             }
 
@@ -1043,8 +1045,6 @@
             document.addEventListener('click', function(e) {
                 if (e.target !== inputField) closeAutocomplete();
             });
-            setInterval(fetchLogs, 1500);
-            fetchLogs();
         </script>
         {% endif %}
 

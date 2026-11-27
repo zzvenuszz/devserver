@@ -3,6 +3,7 @@ Cấu hình tập trung cho ứng dụng Flask
 """
 import os
 import time
+import threading
 
 # Cấu hình cơ bản
 BASE_DATA_DIR = "/data"
@@ -66,6 +67,8 @@ class GlobalState:
     """Lưu trạng thái toàn cục của ứng dụng"""
     def __init__(self):
         self.logs = []
+        self.log_sequence = 0
+        self.logs_condition = threading.Condition()
         self.java_process = None
         self.bore_processes = {}
         self.panel_public_address = None
@@ -137,6 +140,7 @@ class GlobalState:
     def reset(self):
         """Reset state (hữu ích cho testing)"""
         self.logs = []
+        self.log_sequence = 0
         self.java_process = None
         self.bore_processes = {}
         self.panel_public_address = None

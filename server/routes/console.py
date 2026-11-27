@@ -1,7 +1,8 @@
 """
 Console Routes - API cho console và command
 """
-from flask import Blueprint, jsonify, request
+import json
+from flask import Blueprint, Response, jsonify, request, stream_with_context
 from server.config import state, Config
 from server.services.minecraft import (
     send_command, is_server_running, stop_server, restart_paper,
@@ -59,6 +60,45 @@ def api_minecraft_version_select():
 def get_logs():
     """Lấy danh sách logs gần nhất"""
     return jsonify({"logs": state.logs[-Config.LOGS_TO_RETURN:]})
+
+
+@console_bp.route("/api/logs/stream")
+def stream_logs():
+    """Stream log entries over one Server-Sent Events connection."""
+    try:
+        last_event_id = max(0, int(request.headers.get("Last-Event-ID", "0")))
+    except ValueError:
+        last_event_id = 0
+
+    @stream_with_context
+    def generate():
+        nonlocal last_event_id
+        if last_event_id == 0:
+            with state.logs_condition:
+                snapshot = list(state.logs[-Config.LOGS_TO_RETURN:])
+                last_event_id = snapshot[-1]["id"] if snapshot else state.log_sequence
+            yield f"id: {last_event_id}\nevent: snapshot\ndata: {json.dumps(snapshot, ensure_ascii=False)}\n\n"
+
+        while True:
+            with state.logs_condition:
+                new_entries = [entry for entry in state.logs if entry["id"] > last_event_id]
+                if not new_entries:
+                    state.logs_condition.wait(timeout=15)
+                    new_entries = [entry for entry in state.logs if entry["id"] > last_event_id]
+
+            if not new_entries:
+                yield ": keep-alive\n\n"
+                continue
+
+            for entry in new_entries:
+                last_event_id = entry["id"]
+                yield f"id: {last_event_id}\ndata: {json.dumps(entry, ensure_ascii=False)}\n\n"
+
+    return Response(
+        generate(),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @console_bp.route("/api/ping")

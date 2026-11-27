@@ -15,17 +15,21 @@ def add_log(msg, log_type="system"):
         log_type: Loại log (system, monitor, bore, error, command, chat, plugins)
     """
     timestamp = datetime.datetime.now().strftime("%H:%M:%S")
-    log_entry = {
-        "time": timestamp,
-        "type": log_type,
-        "text": msg.strip()
-    }
     print(f"[{log_type.upper()}] {msg.strip()}")
-    state.logs.append(log_entry)
-    
-    # Giới hạn số lượng logs
-    if len(state.logs) > Config.MAX_LOGS:
-        state.logs.pop(0)
+    with state.logs_condition:
+        state.log_sequence += 1
+        log_entry = {
+            "id": state.log_sequence,
+            "time": timestamp,
+            "type": log_type,
+            "text": msg.strip()
+        }
+        state.logs.append(log_entry)
+
+        # Giới hạn số lượng logs
+        if len(state.logs) > Config.MAX_LOGS:
+            state.logs.pop(0)
+        state.logs_condition.notify_all()
 
 
 def parse_and_add_raw_log(line):
