@@ -2,15 +2,18 @@
 Minecraft Server Service - Quản lý Paper Minecraft Server
 """
 import os
+import re
 import shutil
 import subprocess
 import threading
+import tempfile
 from server.config import state, Config, BASE_DATA_DIR
 from server.utils import add_log
 from server.services.paper import (
     ensure_paper_jar, find_server_jar, get_latest_paper_version,
     java_executable_for_version,
 )
+from server.services.server_properties import ensure_server_properties
 
 _start_lock = threading.Lock()
 
@@ -38,6 +41,8 @@ def _start_paper_process(jar_path=None):
         return
 
     try:
+        ensure_eula_true()
+        ensure_server_properties()
         setup_plugins_directory()
         if jar_path is None:
             version, jar_path = _selected_paper_jar()
@@ -74,6 +79,47 @@ def _start_paper_process(jar_path=None):
             parse_and_add_raw_log(line)
     except Exception as exc:
         add_log(f"Lỗi khởi chạy Paper Server: {exc}", "error")
+
+
+def ensure_eula_true():
+    """Persist eula=true before starting any Minecraft server JAR."""
+    eula_path = os.path.join(BASE_DATA_DIR, "eula.txt")
+    os.makedirs(BASE_DATA_DIR, exist_ok=True)
+    try:
+        with open(eula_path, "r", encoding="utf-8", errors="replace") as source:
+            lines = source.read().splitlines()
+    except FileNotFoundError:
+        lines = []
+
+    updated = False
+    found = False
+    for index, line in enumerate(lines):
+        if re.match(r"^\s*eula\s*=", line, re.IGNORECASE):
+            found = True
+            if line.strip() != "eula=true":
+                lines[index] = "eula=true"
+                updated = True
+            break
+    if not found:
+        lines.append("eula=true")
+        updated = True
+    if not updated:
+        return
+
+    fd, temporary_path = tempfile.mkstemp(prefix="eula.", dir=BASE_DATA_DIR, text=True)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as output:
+            output.write("\n".join(lines) + "\n")
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(temporary_path, eula_path)
+        add_log("Đã xác nhận EULA trong /data/eula.txt trước khi khởi chạy server.", "system")
+    except Exception:
+        try:
+            os.remove(temporary_path)
+        except OSError:
+            pass
+        raise
 
 
 def launch_server_from_jar():

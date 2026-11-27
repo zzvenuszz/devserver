@@ -243,6 +243,19 @@
             flex-direction: column;
             overflow: hidden;
         }
+        .server-settings-layout { display:flex; flex-direction:column; flex:1; min-height:0; gap:12px; overflow:hidden; }
+        .server-settings-toolbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; flex-shrink:0; }
+        .server-settings-toolbar input { flex:1; min-width:180px; background:var(--bg-input); color:var(--text-main); border:1px solid var(--border-color); border-radius:4px; padding:9px 11px; }
+        .server-properties-list { flex:1; overflow-y:auto; background:var(--bg-card); border:1px solid var(--border-color); border-radius:6px; padding:12px; }
+        .property-group-title { color:#4caf50; font-size:13px; margin:8px 0; text-transform:uppercase; }
+        .property-row { display:grid; grid-template-columns:minmax(220px,1fr) minmax(220px,1fr); gap:6px 14px; align-items:center; padding:11px 8px; border-bottom:1px solid var(--border-light); }
+        .property-name { font-family:monospace; font-weight:700; overflow-wrap:anywhere; }
+        .property-control input:not([type=checkbox]), .property-control select { width:100%; box-sizing:border-box; background:var(--bg-input); color:var(--text-main); border:1px solid var(--border-color); border-radius:4px; padding:8px; }
+        .property-description { grid-column:1/-1; color:var(--text-dark-gray); font-size:12px; line-height:1.4; }
+        .property-switch { display:inline-flex; align-items:center; gap:9px; cursor:pointer; }
+        .property-switch input { width:18px; height:18px; accent-color:#4caf50; }
+        .property-save { background:#4caf50; color:#fff; border:0; border-radius:4px; padding:9px 15px; font-weight:700; cursor:pointer; }
+        .property-save:disabled { opacity:.6; cursor:wait; }
         .card h3 { margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; color: #4caf50; flex-shrink: 0; }
         
         .fm-toolbar { 
@@ -686,6 +699,8 @@
             .console-main-frame {
                 grid-template-columns: 1fr;
             }
+            .property-row { grid-template-columns:1fr; }
+            .property-description { grid-column:1; }
             .alert-popup-container {
                 left: 10px;
                 right: 10px;
@@ -732,10 +747,151 @@
         <a href="/" class="tab-btn {{ 'active' if active_tab == 'console' else '' }}">💻 Live Console</a>
         <a href="/files" class="tab-btn {{ 'active' if active_tab == 'files' else '' }}">📂 File Manager v4</a>
         <a href="/monitor" class="tab-btn {{ 'active' if active_tab == 'monitor' else '' }}">📊 Monitor Dashboard</a>
+        <a href="/server-settings" class="tab-btn {{ 'active' if active_tab == 'server-settings' else '' }}">⚙️ Server Properties</a>
         <a href="/terminal" class="tab-btn {{ 'active' if active_tab == 'terminal' else '' }}">🖥️ Terminal</a>
     </div>
 
     <div class="container">
+        {% if active_tab == 'server-settings' %}
+        <div class="server-settings-layout">
+            <div class="server-settings-toolbar">
+                <input id="properties-search" type="search" placeholder="Tìm cài đặt theo tên hoặc mô tả..." oninput="filterServerProperties()">
+                <button id="properties-save-button" class="property-save" onclick="saveServerProperties()">Lưu server.properties</button>
+                <span id="properties-status" style="color:var(--text-muted);font-size:12px;">Đang tải cài đặt...</span>
+            </div>
+            <div id="server-properties-list" class="server-properties-list"></div>
+        </div>
+        <script>
+            let serverProperties = [];
+            function propertyGroup(key) {
+                if (key.startsWith('resource-pack')) return 'Resource pack';
+                if (key.startsWith('management-server') || key.startsWith('rcon') || key.includes('port') || key === 'server-ip') return 'Kết nối và quản lý';
+                if (key.startsWith('level-') || key.includes('structure') || key.includes('generator') || key === 'hardcore') return 'Thế giới';
+                if (key.includes('player') || key.includes('gamemode') || key.includes('whitelist') || key === 'white-list' || key === 'online-mode') return 'Người chơi';
+                if (key.includes('distance') || key.includes('tick') || key.includes('compression') || key.includes('broadcast')) return 'Hiệu năng';
+                return 'Khác';
+            }
+            function renderServerProperties() {
+                const container = document.getElementById('server-properties-list');
+                const groups = {};
+                serverProperties.forEach(item => {
+                    const group = propertyGroup(item.key);
+                    (groups[group] ||= []).push(item);
+                });
+                container.replaceChildren();
+                Object.entries(groups).forEach(([group, items]) => {
+                    const heading = document.createElement('h3');
+                    heading.className = 'property-group-title';
+                    heading.textContent = group;
+                    container.appendChild(heading);
+                    items.forEach(item => {
+                        const row = document.createElement('div');
+                        row.className = 'property-row';
+                        row.dataset.searchText = `${item.key} ${item.description}`.toLowerCase();
+                        const name = document.createElement('div');
+                        name.className = 'property-name';
+                        name.textContent = item.key;
+                        row.appendChild(name);
+
+                        const controlBox = document.createElement('div');
+                        controlBox.className = 'property-control';
+                        let control;
+                        if (item.type === 'boolean') {
+                            const label = document.createElement('label');
+                            label.className = 'property-switch';
+                            control = document.createElement('input');
+                            control.type = 'checkbox';
+                            control.checked = item.value.toLowerCase() === 'true';
+                            label.append(control, document.createTextNode(control.checked ? 'On' : 'Off'));
+                            control.addEventListener('change', () => { label.lastChild.textContent = control.checked ? 'On' : 'Off'; });
+                            controlBox.appendChild(label);
+                        } else if (item.type === 'enum') {
+                            control = document.createElement('select');
+                            item.options.forEach(value => {
+                                const option = document.createElement('option');
+                                option.value = value;
+                                option.textContent = value;
+                                control.appendChild(option);
+                            });
+                            control.value = item.value;
+                        } else {
+                            control = document.createElement('input');
+                            control.type = item.type === 'number' ? 'number' : 'text';
+                            control.value = item.value;
+                            control.maxLength = item.maxLength;
+                            if (item.type === 'number') {
+                                control.min = item.min;
+                                control.max = item.max;
+                                control.step = 1;
+                            }
+                        }
+                        control.dataset.propertyKey = item.key;
+                        if (item.type !== 'boolean') controlBox.appendChild(control);
+                        row.appendChild(controlBox);
+
+                        const description = document.createElement('div');
+                        description.className = 'property-description';
+                        const limits = item.type === 'text' ? ` Tối đa ${item.maxLength} ký tự.` :
+                            item.type === 'number' ? ` Giá trị từ ${item.min} đến ${item.max}.` : '';
+                        description.textContent = item.description + limits;
+                        row.appendChild(description);
+                        container.appendChild(row);
+                    });
+                });
+                filterServerProperties();
+            }
+            function filterServerProperties() {
+                const query = (document.getElementById('properties-search').value || '').toLowerCase();
+                const container = document.getElementById('server-properties-list');
+                container.querySelectorAll('.property-group-title').forEach(heading => {
+                    let hasVisibleRow = false;
+                    let sibling = heading.nextElementSibling;
+                    while (sibling && !sibling.classList.contains('property-group-title')) {
+                        if (sibling.classList.contains('property-row')) {
+                            sibling.style.display = sibling.dataset.searchText.includes(query) ? '' : 'none';
+                            hasVisibleRow ||= sibling.style.display !== 'none';
+                        }
+                        sibling = sibling.nextElementSibling;
+                    }
+                    heading.style.display = hasVisibleRow ? '' : 'none';
+                });
+            }
+            function loadServerProperties() {
+                fetch('/api/server/properties').then(async response => {
+                    const data = await response.json();
+                    if (!response.ok || data.status !== 'success') throw new Error(data.message || 'Không tải được server.properties');
+                    serverProperties = data.properties;
+                    renderServerProperties();
+                    document.getElementById('properties-status').textContent = `Đã tải ${serverProperties.length} cài đặt từ /data/server.properties.`;
+                }).catch(error => { document.getElementById('properties-status').textContent = `Lỗi: ${error.message}`; });
+            }
+            function saveServerProperties() {
+                const button = document.getElementById('properties-save-button');
+                const status = document.getElementById('properties-status');
+                const controls = document.querySelectorAll('[data-property-key]');
+                const values = Array.from(controls, control => ({
+                    key: control.dataset.propertyKey,
+                    value: control.type === 'checkbox' ? String(control.checked) : control.value
+                }));
+                button.disabled = true;
+                status.textContent = 'Đang lưu...';
+                fetch('/api/server/properties', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({properties: values})
+                }).then(async response => {
+                    const data = await response.json();
+                    if (!response.ok || data.status !== 'success') throw new Error(data.message || 'Không lưu được cài đặt');
+                    serverProperties = data.properties;
+                    renderServerProperties();
+                    status.textContent = data.message;
+                }).catch(error => { status.textContent = `Lỗi: ${error.message}`; })
+                  .finally(() => { button.disabled = false; });
+            }
+            loadServerProperties();
+        </script>
+        {% endif %}
+
         {% if active_tab == 'console' %}
         <div class="console-layout">
             <div class="console-filter-bar">

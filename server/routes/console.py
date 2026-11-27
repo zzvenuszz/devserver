@@ -11,6 +11,7 @@ from server.services.minecraft import (
 from server.services.paper import get_paper_versions, ensure_paper_jar
 from server.utils import add_log
 from server.utils.persistence import load_settings, save_settings
+from server.services.server_properties import get_server_properties, save_server_properties
 
 console_bp = Blueprint('console', __name__)
 
@@ -112,6 +113,31 @@ def api_start_server():
     """Start a detected server JAR from persistent /data storage."""
     success, message = launch_server_from_jar()
     return jsonify({"status": "success" if success else "error", "message": message}), (200 if success else 409)
+
+
+@console_bp.route("/api/server/properties", methods=["GET", "POST"])
+def api_server_properties():
+    """Read or update the typed persistent server.properties settings."""
+    if request.method == "GET":
+        try:
+            return jsonify({"status": "success", "properties": get_server_properties()})
+        except Exception as exc:
+            return jsonify({"status": "error", "message": str(exc)}), 500
+
+    data = request.get_json(silent=True) or {}
+    try:
+        properties = save_server_properties(data.get("properties", []))
+        add_log("Đã lưu cài đặt vào /data/server.properties.", "system")
+        return jsonify({
+            "status": "success",
+            "properties": properties,
+            "running": is_server_running(),
+            "message": "Đã lưu /data/server.properties. Hãy restart server để áp dụng thay đổi.",
+        })
+    except (TypeError, ValueError) as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 500
 
 
 @console_bp.route("/api/command", methods=["POST"])
