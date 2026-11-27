@@ -12,7 +12,7 @@ def add_log(msg, log_type="system"):
     
     Args:
         msg: Nội dung log message
-        log_type: Loại log (system, monitor, playit, error, command, chat, plugins)
+        log_type: Loại log (system, monitor, bore, error, command, chat, plugins)
     """
     timestamp = datetime.datetime.now().strftime("%H:%M:%S")
     log_entry = {
@@ -48,8 +48,8 @@ def parse_and_add_raw_log(line):
     # Phân loại dựa trên nội dung
     if "[MONITOR]" in line_str:
         log_type = "monitor"
-    elif "[PLAYIT]" in line_str or "playit_agent_core" in line_str:
-        log_type = "playit"
+    elif "[BORE]" in line_str or "bore.pub" in line_str:
+        log_type = "bore"
     elif "ERROR" in line_str.upper() or "WARN" in line_str.upper() or "EXCEPTION" in line_str.upper():
         log_type = "error"
     elif "issued server command:" in line_str or "made advancement" in line_str or "teleported to" in line_str:

@@ -26,10 +26,13 @@ class Config:
     # Minecraft Server Settings
     MC_RAM_MIN = "1G"
     MC_RAM_MAX = "10G"
-    PAPER_JAR = "paper.jar"
+    PAPERMC_USER_AGENT = os.getenv(
+        "PAPERMC_USER_AGENT",
+        "VnMinePanel/1.0 (https://github.com/zzvenuszz/devserver)"
+    )
     
-    # Playit Configuration
-    PLAYIT_SECRET_KEY = os.getenv("PLAYIT_SECRET_KEY")
+    # Public TCP tunnels via bore.pub
+    MINECRAFT_PORT = int(os.getenv("MINECRAFT_PORT", 25565))
     
     # Logging
     MAX_LOGS = 5000
@@ -64,7 +67,10 @@ class GlobalState:
     def __init__(self):
         self.logs = []
         self.java_process = None
-        self.playit_process = None
+        self.bore_processes = {}
+        self.panel_public_address = None
+        self.minecraft_public_address = None
+        self.minecraft_version = ""
         self.current_mc_ram = 0
         self.current_mc_cpu = 0
         self.server_ip = "Đang lấy..."
@@ -132,7 +138,10 @@ class GlobalState:
         """Reset state (hữu ích cho testing)"""
         self.logs = []
         self.java_process = None
-        self.playit_process = None
+        self.bore_processes = {}
+        self.panel_public_address = None
+        self.minecraft_public_address = None
+        self.minecraft_version = ""
         self.current_mc_ram = 0
         self.current_mc_cpu = 0
         self.system_cpu = 0

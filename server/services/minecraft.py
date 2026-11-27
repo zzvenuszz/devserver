@@ -7,6 +7,60 @@ import subprocess
 import threading
 from server.config import state, Config, BASE_DATA_DIR
 from server.utils import add_log
+from server.services.paper import ensure_paper_jar, get_latest_paper_version, java_executable_for_version
+
+
+def _selected_paper_jar():
+    version = state.minecraft_version
+    if not version:
+        version = get_latest_paper_version()
+        state.minecraft_version = version
+        from server.utils.persistence import load_settings, save_settings
+        settings = load_settings()
+        settings.setdefault("minecraft", {})["version"] = version
+        save_settings(settings)
+        add_log(f"Chưa lưu phiên bản Minecraft; chọn Paper {version} mới nhất.", "system")
+
+    add_log(f"Đang kiểm tra server JAR cho Minecraft {version}...", "system")
+    jar_path = ensure_paper_jar(version)
+    add_log(f"Sử dụng server JAR: {jar_path}", "system")
+    return version, jar_path
+
+
+def _start_paper_process():
+    setup_plugins_directory()
+    try:
+        version, jar_path = _selected_paper_jar()
+    except Exception as exc:
+        add_log(f"Không thể chuẩn bị server JAR: {exc}", "error")
+        return
+
+    cmd = [
+        java_executable_for_version(version),
+        f"-Xms{Config.MC_RAM_MIN}",
+        f"-Xmx{Config.MC_RAM_MAX}",
+        "-XshowSettings:vm",
+        "-jar",
+        jar_path,
+        "--nogui",
+    ]
+    add_log(f"Starting Paper Minecraft {version} with High-Performance Settings...", "system")
+
+    try:
+        state.java_process = subprocess.Popen(
+            cmd,
+            cwd=BASE_DATA_DIR,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1
+        )
+        for line in state.java_process.stdout:
+            from server.utils import parse_and_add_raw_log
+            parse_and_add_raw_log(line)
+    except Exception as exc:
+        add_log(f"Lỗi khởi chạy Paper Server: {exc}", "error")
 
 
 def setup_plugins_directory():
@@ -34,40 +88,7 @@ def run_paper():
     """
     Khởi chạy Paper Minecraft Server
     """
-    global java_process
-    
-    setup_plugins_directory()
-
-    cmd = [
-        "java",
-        f"-Xms{Config.MC_RAM_MIN}",
-        f"-Xmx{Config.MC_RAM_MAX}",
-        "-XshowSettings:vm",
-        "-jar",
-        Config.PAPER_JAR,
-        "--config", os.path.join(BASE_DATA_DIR, "server.properties"),
-        "-W",
-        BASE_DATA_DIR,
-        "--nogui"
-    ]
-
-    add_log("Starting Paper Minecraft Server with High-Performance Settings...", "system")
-
-    try:
-        state.java_process = subprocess.Popen(
-            cmd,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1
-        )
-
-        for line in state.java_process.stdout:
-            from server.utils import parse_and_add_raw_log
-            parse_and_add_raw_log(line)
-    except Exception as e:
-        add_log(f"Lỗi khởi chạy Paper Server: {e}", "error")
+    _start_paper_process()
 
 
 def send_command(cmd):
@@ -173,33 +194,4 @@ def restart_paper():
 
 def run_paper_internal():
     """Internal function để chạy Paper (dùng cho restart)"""
-    setup_plugins_directory()
-    
-    cmd = [
-        "java",
-        f"-Xms{Config.MC_RAM_MIN}",
-        f"-Xmx{Config.MC_RAM_MAX}",
-        "-XshowSettings:vm",
-        "-jar",
-        Config.PAPER_JAR,
-        "--config", os.path.join(BASE_DATA_DIR, "server.properties"),
-        "-W",
-        BASE_DATA_DIR,
-        "--nogui"
-    ]
-    
-    try:
-        state.java_process = subprocess.Popen(
-            cmd,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1
-        )
-        
-        for line in state.java_process.stdout:
-            from server.utils import parse_and_add_raw_log
-            parse_and_add_raw_log(line)
-    except Exception as e:
-        add_log(f"Lỗi khởi chạy Paper Server: {e}", "error")
+    _start_paper_process()

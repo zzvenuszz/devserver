@@ -16,6 +16,15 @@ from server.utils.persistence import (
 monitor_bp = Blueprint('monitor', __name__)
 
 
+@monitor_bp.route("/api/tunnels")
+def api_tunnels():
+    """Current public endpoints assigned by bore.pub."""
+    return jsonify({
+        "panel": state.panel_public_address,
+        "minecraft": state.minecraft_public_address,
+    })
+
+
 @monitor_bp.route("/api/monitor/stats")
 def api_monitor_stats():
     """Lấy tất cả metrics monitor hiện tại"""

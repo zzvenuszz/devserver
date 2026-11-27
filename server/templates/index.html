@@ -25,7 +25,7 @@
             --log-error: #ff5252;
             --log-plugins: #1ce1ff;
             --log-chat: #ff9233;
-            --log-playit: #b07fff;
+            --log-bore: #b07fff;
             --log-monitor: #8c8c8c;
             --link-color: #38b6ff;
             --link-dir-color: #ffc107;
@@ -56,7 +56,7 @@
             --log-error: #721c24;
             --log-plugins: #0c5460;
             --log-chat: #a04000;
-            --log-playit: #4a148c;
+            --log-bore: #4a148c;
             --log-monitor: #5a5a5a;
             --link-color: #0056b3;
             --link-dir-color: #b15b00;
@@ -93,6 +93,8 @@
         .stats-bar span { background: var(--bg-card); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color); color: var(--text-main); }
         .stats-bar .status-green { color: #28a745 !important; font-weight: bold; }
         .stats-bar .status-red { color: #dc3545 !important; font-weight: bold; }
+        .public-addresses { padding: 8px 14px; color: var(--text-main); font-size: 13px; display: flex; gap: 18px; flex-wrap: wrap; }
+        .public-addresses strong { color: #1ce1ff; }
         .logout-btn { background: #dc3545; color: white; text-decoration: none; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; min-height: 26px; }
         
         .theme-selector {
@@ -193,7 +195,7 @@
         .log-error { color: var(--log-error); font-weight: bold; background: rgba(255,77,77,0.08); padding: 1px 4px; border-radius: 2px; }
         .log-plugins { color: var(--log-plugins); font-weight: bold; }
         .log-chat { color: var(--log-chat); background: rgba(253,126,20,0.08); padding: 2px 4px; font-weight: 500; border-radius: 2px; }
-        .log-playit { color: var(--log-playit); }
+        .log-bore { color: var(--log-bore); }
         .log-monitor { color: var(--log-monitor); font-size: 12px; }
         
         .cmd-container { position: relative; flex-shrink: 0; }
@@ -711,6 +713,20 @@
             </div>
         </div>
     </div>
+    <div class="public-addresses" id="public-addresses">
+        <span>Panel public: <strong id="panel-public-address">Đang kết nối bore.pub...</strong></span>
+        <span>Minecraft public: <strong id="minecraft-public-address">Đang kết nối bore.pub...</strong></span>
+    </div>
+    <script>
+        function refreshPublicAddresses() {
+            fetch('/api/tunnels').then(response => response.json()).then(data => {
+                document.getElementById('panel-public-address').textContent = data.panel || 'Đang cấp địa chỉ...';
+                document.getElementById('minecraft-public-address').textContent = data.minecraft || 'Đang cấp địa chỉ...';
+            }).catch(() => {});
+        }
+        refreshPublicAddresses();
+        setInterval(refreshPublicAddresses, 5000);
+    </script>
 
     <div class="tabs">
         <a href="/" class="tab-btn {{ 'active' if active_tab == 'console' else '' }}">💻 Live Console</a>
@@ -730,7 +746,7 @@
                     <button class="filter-btn" onclick="setFilter('chat', this)">💬 CHAT GAME</button>
                     <button class="filter-btn" onclick="setFilter('plugins', this)">📦 PLUGINS</button>
                     <button class="filter-btn" onclick="setFilter('error', this)">⚠️ LỖI/WARN</button>
-                    <button class="filter-btn" onclick="setFilter('playit', this)">🌐 PLAYIT</button>
+                    <button class="filter-btn" onclick="setFilter('bore', this)">🌐 BORE TUNNEL</button>
                     <button class="filter-btn" onclick="setFilter('monitor', this)">📊 GIÁM SÁT</button>
                 </div>
                 <button class="btn-copy-logs" onclick="copyAllLogs()">📋 Copy Toàn Bộ Logs</button>
@@ -750,6 +766,15 @@
 
                 <div class="quick-panel">
                     <h3>⚡ Điều Khiển Nhanh</h3>
+
+                    <div class="cmd-group">
+                        <div class="cmd-group-title">Phiên bản Minecraft (Paper)</div>
+                        <select id="minecraft-version-select" class="btn-quick" aria-label="Chọn phiên bản Minecraft">
+                            <option value="">Đang tải danh sách phiên bản...</option>
+                        </select>
+                        <button class="btn-quick" id="minecraft-version-save" onclick="saveMinecraftVersion()">⬇️ Lưu phiên bản & tải server JAR</button>
+                        <div id="minecraft-version-status" style="font-size:12px;color:var(--text-muted);">Đang lấy phiên bản từ PaperMC...</div>
+                    </div>
                     
                     <div class="cmd-group">
                         <div class="cmd-group-title">Hệ thống & Hiệu năng</div>
@@ -781,6 +806,39 @@
 
         <script>
             let currentFilter = 'all';
+            function loadMinecraftVersions() {
+                const select = document.getElementById('minecraft-version-select');
+                if (!select) return;
+                fetch('/api/minecraft/versions').then(response => response.json()).then(data => {
+                    if (data.status !== 'success') throw new Error(data.message || 'Không tải được danh sách phiên bản');
+                    select.innerHTML = data.versions.map(version => `<option value="${version}">${version}</option>`).join('');
+                    select.value = data.selected && data.versions.includes(data.selected) ? data.selected : data.versions[0];
+                    document.getElementById('minecraft-version-status').textContent = `Có ${data.versions.length} phiên bản Paper; danh sách tự cập nhật từ PaperMC.`;
+                }).catch(error => {
+                    document.getElementById('minecraft-version-status').textContent = `Không tải được danh sách: ${error.message}`;
+                });
+            }
+            function saveMinecraftVersion() {
+                const select = document.getElementById('minecraft-version-select');
+                const button = document.getElementById('minecraft-version-save');
+                const status = document.getElementById('minecraft-version-status');
+                if (!select || !select.value) return;
+                button.disabled = true;
+                status.textContent = `Đang lưu và tải Paper ${select.value}...`;
+                fetch('/api/minecraft/version', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({version: select.value})
+                }).then(async response => {
+                    const data = await response.json();
+                    if (!response.ok || data.status !== 'success') throw new Error(data.message || 'Không tải được server JAR');
+                    status.textContent = `${data.message} (${data.jar})`;
+                }).catch(error => {
+                    status.textContent = `Lỗi: ${error.message}`;
+                }).finally(() => { button.disabled = false; });
+            }
+            loadMinecraftVersions();
+            setInterval(loadMinecraftVersions, 60 * 60 * 1000);
             const commandList = [
                 "stop", "reload", "plugins", "version", "seed", "whitelist on", "whitelist off", "whitelist add ", "whitelist list",
                 "op ", "deop ", "gamemode creative ", "gamemode survival ", "gamemode adventure ", "gamemode spectator ",

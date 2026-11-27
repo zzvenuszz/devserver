@@ -32,6 +32,9 @@ def load_settings():
         },
         "theme": {
             "mode": "dark"
+        },
+        "minecraft": {
+            "version": ""
         }
     }
     
@@ -39,8 +42,15 @@ def load_settings():
         if os.path.exists(SETTINGS_FILE):
             with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
                 settings = json.load(f)
-                # Merge với default để đảm bảo có đủ keys
-                return {**default_settings, **settings}
+                # Merge cả các mục lồng nhau để bổ sung cấu hình mới cho file cũ.
+                merged = {**default_settings, **settings}
+                for section, defaults in default_settings.items():
+                    if isinstance(defaults, dict):
+                        saved_section = settings.get(section, {})
+                        if not isinstance(saved_section, dict):
+                            saved_section = {}
+                        merged[section] = {**defaults, **saved_section}
+                return merged
         else:
             # Tạo file mới với default values
             save_settings(default_settings)
@@ -53,11 +63,19 @@ def load_settings():
 def save_settings(settings):
     """Lưu settings vào file"""
     ensure_panel_dir()
+    temporary_file = SETTINGS_FILE + ".tmp"
     try:
-        with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
+        with open(temporary_file, 'w', encoding='utf-8') as f:
             json.dump(settings, f, indent=2, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temporary_file, SETTINGS_FILE)
         return True
     except Exception as e:
+        try:
+            os.remove(temporary_file)
+        except OSError:
+            pass
         print(f"Error saving settings: {e}")
         return False
 
@@ -112,6 +130,9 @@ def apply_settings_to_state(settings):
         # Theme settings
         if "theme" in settings:
             state.theme_mode = settings["theme"].get("mode", "dark")
+
+        if "minecraft" in settings:
+            state.minecraft_version = settings["minecraft"].get("version", "")
         
         # Benchmark results
         benchmark = load_benchmark_results()
@@ -137,6 +158,9 @@ def get_current_settings():
         },
         "theme": {
             "mode": getattr(state, 'theme_mode', 'dark')
+        },
+        "minecraft": {
+            "version": state.minecraft_version
         },
         "benchmark": {
             "disk_max_speed": state.disk_max_speed,
