@@ -50,7 +50,7 @@ def api_minecraft_version_select():
             "version": version,
             "jar": jar_path,
             "running": is_server_running(),
-            "message": "Đã tải và lưu server JAR. Hãy khởi động lại server để áp dụng phiên bản mới." if is_server_running() else "Đã tải và lưu server JAR; server sẽ dùng phiên bản này khi khởi động.",
+            "message": "Đã tải và lưu server JAR. Hãy khởi động lại server để áp dụng phiên bản mới." if is_server_running() else "Đã tải và lưu server JAR. Bấm nút Khởi chạy server khi bạn muốn bắt đầu.",
         })
     except Exception as exc:
         add_log(f"Không thể tải Paper {version}: {exc}", "error")

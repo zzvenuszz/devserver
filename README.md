@@ -1,5 +1,5 @@
 ---
-title: Server Tu Tiên
+title: MCSV X
 emoji: 💥
 colorFrom: indigo
 colorTo: gray

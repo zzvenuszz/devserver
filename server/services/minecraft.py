@@ -10,7 +10,7 @@ import tempfile
 from server.config import state, Config, BASE_DATA_DIR
 from server.utils import add_log
 from server.services.paper import (
-    ensure_paper_jar, find_server_jar, get_latest_paper_version,
+    find_server_jar, get_latest_paper_version, paper_jar_path,
     java_executable_for_version,
 )
 from server.services.server_properties import ensure_server_properties
@@ -21,16 +21,13 @@ _start_lock = threading.Lock()
 def _selected_paper_jar():
     version = state.minecraft_version
     if not version:
-        version = get_latest_paper_version()
-        state.minecraft_version = version
-        from server.utils.persistence import load_settings, save_settings
-        settings = load_settings()
-        settings.setdefault("minecraft", {})["version"] = version
-        save_settings(settings)
-        add_log(f"Chưa lưu phiên bản Minecraft; chọn Paper {version} mới nhất.", "system")
+        raise FileNotFoundError("Chưa chọn phiên bản Minecraft. Hãy chọn và tải server JAR trong panel.")
 
-    add_log(f"Đang kiểm tra server JAR cho Minecraft {version}...", "system")
-    jar_path = ensure_paper_jar(version)
+    jar_path = paper_jar_path(version)
+    if not os.path.isfile(jar_path):
+        raise FileNotFoundError(
+            f"Chưa có server JAR cho Minecraft {version} tại {jar_path}; server đang chờ bạn tải JAR trong panel."
+        )
     add_log(f"Sử dụng server JAR: {jar_path}", "system")
     return version, jar_path
 
@@ -41,13 +38,15 @@ def _start_paper_process(jar_path=None):
         return
 
     try:
-        ensure_eula_true()
-        ensure_server_properties()
-        setup_plugins_directory()
         if jar_path is None:
             version, jar_path = _selected_paper_jar()
         else:
             version = state.minecraft_version or get_latest_paper_version()
+        if not os.path.isfile(jar_path):
+            raise FileNotFoundError(f"Không tìm thấy server JAR: {jar_path}")
+        ensure_eula_true()
+        ensure_server_properties()
+        setup_plugins_directory()
         cmd = [
             java_executable_for_version(version),
             f"-Xms{Config.MC_RAM_MIN}",
@@ -67,6 +66,9 @@ def _start_paper_process(jar_path=None):
             text=True,
             bufsize=1
         )
+    except FileNotFoundError as exc:
+        add_log(str(exc), "system")
+        return
     except Exception as exc:
         add_log(f"Lỗi khởi chạy Paper Server: {exc}", "error")
         return
@@ -241,6 +243,11 @@ def restart_paper():
         tuple: (success: bool, message: str)
     """
     add_log("===== KHỞI ĐỘNG LẠI MINECRAFT SERVER =====", "system")
+
+    try:
+        _selected_paper_jar()
+    except FileNotFoundError as exc:
+        return False, str(exc)
     
     # Bước 1: Dừng server nếu đang chạy
     if is_server_running():
